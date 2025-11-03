@@ -1,0 +1,150 @@
+// Igosa Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Users
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String?
+  createdAt     DateTime       @default(now())
+  lastLogin     DateTime?
+  preferences   Json?
+
+  conversations Conversation[]
+  negoParticipants NegoParticipant[]
+  userActions   UserAction[]
+
+  @@map("users")
+}
+
+// Conversations
+model Conversation {
+  id        String    @id @default(uuid())
+  userId    String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  title     String?
+  metadata  Json?
+
+  user      User      @relation(fields: [userId], references: [id])
+  messages  Message[]
+
+  @@index([userId])
+  @@map("conversations")
+}
+
+// Messages
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  role           String       // 'user', 'assistant', 'system'
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+  tokensUsed     Int?
+  metadata       Json?
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+// Products (Cache)
+model Product {
+  id          String         @id @default(uuid())
+  externalId  String
+  platform    String         // 'coupang', 'naver', '11st'
+  name        String         @db.VarChar(500)
+  description String?        @db.Text
+  price       Decimal        @db.Decimal(10, 2)
+  currency    String         @default("KRW") @db.VarChar(3)
+  imageUrl    String?        @db.Text
+  productUrl  String?        @db.Text
+  category    String?        @db.VarChar(100)
+  brand       String?        @db.VarChar(100)
+  specs       Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  priceHistory PriceHistory[]
+  negoDeals    NegoDeal[]
+
+  @@unique([externalId, platform])
+  @@index([platform])
+  @@index([category])
+  @@map("products")
+}
+
+// Price History
+model PriceHistory {
+  id         String   @id @default(uuid())
+  productId  String
+  price      Decimal  @db.Decimal(10, 2)
+  recordedAt DateTime @default(now())
+
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@map("price_history")
+}
+
+// Nego Deals
+model NegoDeal {
+  id                  String   @id @default(uuid())
+  productId           String
+  targetParticipants  Int
+  currentParticipants Int      @default(0)
+  discountRate        Decimal  @db.Decimal(5, 2)
+  originalPrice       Decimal  @db.Decimal(10, 2)
+  finalPrice          Decimal  @db.Decimal(10, 2)
+  deadline            DateTime
+  status              String   // 'active', 'completed', 'failed'
+  sellerResponse      String?  // 'pending', 'approved', 'rejected'
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  product             Product  @relation(fields: [productId], references: [id])
+  participants        NegoParticipant[]
+
+  @@index([status])
+  @@map("nego_deals")
+}
+
+// Nego Participants
+model NegoParticipant {
+  id         String   @id @default(uuid())
+  negoDealId String
+  userId     String
+  joinedAt   DateTime @default(now())
+  notified   Boolean  @default(false)
+
+  negoDeal   NegoDeal @relation(fields: [negoDealId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([negoDealId, userId])
+  @@map("nego_participants")
+}
+
+// User Actions (Analytics)
+model UserAction {
+  id         String   @id @default(uuid())
+  userId     String
+  actionType String   @db.VarChar(50)
+  entityType String   @db.VarChar(50)
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([actionType])
+  @@map("user_actions")
+}
