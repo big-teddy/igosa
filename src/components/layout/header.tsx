@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut } from "lucide-react";
+import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut, Package } from "lucide-react";
 
 export function Header() {
   const router = useRouter();
@@ -59,6 +59,12 @@ export function Header() {
         <div className="flex items-center gap-4">
           {user ? (
             <>
+              <Link href="/orders">
+                <Button variant="ghost" size="sm" className="hidden md:flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  주문내역
+                </Button>
+              </Link>
               <span className="text-sm text-muted-foreground hidden md:block">
                 {user.name || user.email}님
               </span>

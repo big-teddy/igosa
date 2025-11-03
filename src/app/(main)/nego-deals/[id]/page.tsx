@@ -31,8 +31,6 @@ export default function NegoDealDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [deal, setDeal] = useState<NegoDeal | null>(null);
-  const [isParticipating, setIsParticipating] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -62,18 +60,15 @@ export default function NegoDealDetailPage() {
   }
 
   const handleParticipate = () => {
-    setIsParticipating(true);
-    // 실제로는 API 호출
-    setTimeout(() => {
-      setShowSuccessModal(true);
-      setIsParticipating(false);
-      // 참여자 수 증가 (실제로는 서버에서 처리)
-      setDeal({
-        ...deal,
-        currentParticipants: deal.currentParticipants + 1,
-        progress: Math.round(((deal.currentParticipants + 1) / deal.targetParticipants) * 100)
-      });
-    }, 1500);
+    // 로그인 확인
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) {
+      router.push(`/login?redirect=/nego-deals/${params.id}`);
+      return;
+    }
+
+    // 결제 페이지로 이동
+    router.push(`/checkout?dealId=${params.id}`);
   };
 
   const timeUrgent = deal.hoursRemaining <= 24;
@@ -274,11 +269,9 @@ export default function NegoDealDetailPage() {
                     size="lg"
                     className="w-full"
                     onClick={handleParticipate}
-                    disabled={isParticipating || deal.status === 'expired'}
+                    disabled={deal.status === 'expired'}
                   >
-                    {isParticipating ? (
-                      <>처리 중...</>
-                    ) : isGoalReached ? (
+                    {isGoalReached ? (
                       <>
                         <Zap className="h-4 w-4 mr-2" />
                         지금 참여하기 (마감 임박)
@@ -355,59 +348,6 @@ export default function NegoDealDetailPage() {
           </div>
         </div>
       </div>
-
-      {/* Success Modal */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="max-w-md w-full">
-            <CardHeader className="text-center">
-              <div className="mx-auto w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mb-4">
-                <Check className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <CardTitle>네고딜 참여 완료!</CardTitle>
-              <CardDescription>
-                {deal.productName}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">참여 인원</span>
-                  <span className="font-medium">
-                    {deal.currentParticipants}/{deal.targetParticipants}명
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">현재 진행률</span>
-                  <span className="font-bold text-primary">{deal.progress}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">예상 할인가</span>
-                  <span className="font-bold">₩{deal.targetPrice.toLocaleString()}</span>
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground text-center">
-                목표 달성 시 SMS와 이메일로 알림을 보내드립니다.
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => router.push('/nego-deals')}
-                >
-                  목록으로
-                </Button>
-                <Button
-                  className="flex-1"
-                  onClick={() => setShowSuccessModal(false)}
-                >
-                  확인
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }
