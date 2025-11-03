@@ -3,8 +3,5 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
-  "regions": ["icn1"],
-  "env": {
-    "OPENAI_API_KEY": "@openai_api_key"
-  }
+  "regions": ["icn1"]
 }
