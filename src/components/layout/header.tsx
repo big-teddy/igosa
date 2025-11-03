@@ -1,10 +1,29 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, ShoppingCart, TrendingDown, User } from "lucide-react";
+import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut } from "lucide-react";
 
 export function Header() {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    // Check for user in localStorage (Mock auth)
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    setUser(null);
+    router.push('/');
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
@@ -38,10 +57,25 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon">
-            <User className="h-5 w-5" />
-          </Button>
-          <Button>시작하기</Button>
+          {user ? (
+            <>
+              <span className="text-sm text-muted-foreground hidden md:block">
+                {user.name || user.email}님
+              </span>
+              <Button variant="ghost" size="icon" onClick={handleLogout} title="로그아웃">
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button variant="ghost">로그인</Button>
+              </Link>
+              <Link href="/signup">
+                <Button>시작하기</Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
