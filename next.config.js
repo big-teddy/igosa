@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['thumbnail.coupangcdn.com', 'shopping-phinf.pstatic.net'],
+    domains: ['thumbnail.coupangcdn.com', 'shopping-phinf.pstatic.net', 'images.unsplash.com'],
   },
   experimental: {
     serverActions: {
