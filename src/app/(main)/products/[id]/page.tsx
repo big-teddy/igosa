@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, Package, TrendingDown, ExternalLink, Heart, ChevronLeft, Users, ThumbsUp, CheckCircle } from "lucide-react";
+import { Star, Package, TrendingDown, ExternalLink, Heart, ChevronLeft, Users, ThumbsUp, CheckCircle, Youtube, Instagram, Globe, Eye, Play } from "lucide-react";
 import { mockProducts } from "@/lib/data/mock-products";
 import { getProductReviews } from "@/lib/data/mock-reviews";
 import { toggleWishlist, isInWishlist, addToRecentlyViewed } from "@/lib/data/user-activity";
@@ -17,6 +17,11 @@ import {
   UserProfile,
   SocialReview
 } from "@/lib/data/mock-social";
+import {
+  getInfluencerReviewsByProduct,
+  getInfluencerReviewSummary,
+  InfluencerReview
+} from "@/lib/data/mock-influencer";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -25,6 +30,8 @@ export default function ProductDetailPage() {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [friendPurchases, setFriendPurchases] = useState<UserProfile[]>([]);
   const [socialReviews, setSocialReviews] = useState<SocialReview[]>([]);
+  const [influencerReviews, setInfluencerReviews] = useState<InfluencerReview[]>([]);
+  const [influencerSummary, setInfluencerSummary] = useState<any>(null);
 
   useEffect(() => {
     if (params.id) {
@@ -38,6 +45,10 @@ export default function ProductDetailPage() {
         // 소셜 데이터 로드 (Mock: 실제로는 로그인 유저 ID 사용)
         setFriendPurchases(getFriendPurchases('user-1', foundProduct.id));
         setSocialReviews(getSocialReviewsByProduct(foundProduct.id));
+
+        // 인플루언서 리뷰 로드
+        setInfluencerReviews(getInfluencerReviewsByProduct(foundProduct.id));
+        setInfluencerSummary(getInfluencerReviewSummary(foundProduct.id));
       }
     }
   }, [params.id]);
@@ -285,6 +296,164 @@ export default function ProductDetailPage() {
                 </div>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Influencer Reviews */}
+      {influencerReviews.length > 0 && (
+        <Card className="mb-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Play className="h-5 w-5 text-red-600" />
+                인플루언서 & 유튜버 리뷰
+              </CardTitle>
+              {influencerSummary && (
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Eye className="h-4 w-4" />
+                    {(influencerSummary.totalViews / 10000).toFixed(0)}만 조회
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <ThumbsUp className="h-4 w-4" />
+                    {influencerSummary.recommendPercent}% 추천
+                  </span>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {influencerReviews.map((review) => {
+              const getPlatformIcon = (platform: string) => {
+                switch (platform) {
+                  case 'youtube':
+                    return <Youtube className="h-4 w-4 text-red-600" />;
+                  case 'instagram':
+                    return <Instagram className="h-4 w-4 text-pink-600" />;
+                  case 'blog':
+                    return <Globe className="h-4 w-4 text-blue-600" />;
+                  default:
+                    return <Globe className="h-4 w-4" />;
+                }
+              };
+
+              return (
+                <div key={review.id} className="p-4 bg-gradient-to-r from-muted/50 to-background rounded-lg border">
+                  <div className="flex items-start gap-4 mb-3">
+                    {/* Thumbnail */}
+                    {review.thumbnail && (
+                      <div className="w-32 h-20 bg-muted rounded overflow-hidden flex-shrink-0 relative group cursor-pointer">
+                        <img
+                          src={review.thumbnail}
+                          alt={review.productName}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Play className="h-8 w-8 text-white" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Content */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden">
+                          {review.influencerAvatar ? (
+                            <img src={review.influencerAvatar} alt={review.influencerName} className="w-full h-full" />
+                          ) : (
+                            <Users className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{review.influencerName}</span>
+                          {getPlatformIcon(review.platform)}
+                          <span className="text-xs text-muted-foreground">
+                            {(review.influencerFollowers / 10000).toFixed(1)}만 팔로워
+                          </span>
+                        </div>
+                        {review.rating && (
+                          <div className="flex items-center gap-1 ml-auto">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span className="font-semibold">{review.rating}.0</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-sm mb-3 font-medium">{review.summary}</p>
+
+                      {/* Key Points */}
+                      {review.keyPoints.length > 0 && (
+                        <div className="mb-3">
+                          <div className="flex flex-wrap gap-1">
+                            {review.keyPoints.map((point, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                ✓ {point}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pros & Cons */}
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        {review.pros.length > 0 && (
+                          <div>
+                            <div className="text-xs font-semibold text-green-600 mb-1">장점</div>
+                            <div className="flex flex-wrap gap-1">
+                              {review.pros.slice(0, 2).map((pro, index) => (
+                                <Badge key={index} variant="outline" className="text-xs border-green-600/30 text-green-700">
+                                  {pro}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {review.cons.length > 0 && (
+                          <div>
+                            <div className="text-xs font-semibold text-red-600 mb-1">단점</div>
+                            <div className="flex flex-wrap gap-1">
+                              {review.cons.slice(0, 2).map((con, index) => (
+                                <Badge key={index} variant="outline" className="text-xs border-red-600/30 text-red-700">
+                                  {con}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Stats & Link */}
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center gap-3">
+                          {review.viewCount && (
+                            <span className="flex items-center gap-1">
+                              <Eye className="h-3 w-3" />
+                              {(review.viewCount / 10000).toFixed(0)}만
+                            </span>
+                          )}
+                          {review.likeCount && (
+                            <span className="flex items-center gap-1">
+                              <ThumbsUp className="h-3 w-3" />
+                              {(review.likeCount / 1000).toFixed(1)}K
+                            </span>
+                          )}
+                          <span>{new Date(review.publishedAt).toLocaleDateString('ko-KR')}</span>
+                        </div>
+                        <a
+                          href={review.contentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline flex items-center gap-1"
+                        >
+                          원본 보기 <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       )}
