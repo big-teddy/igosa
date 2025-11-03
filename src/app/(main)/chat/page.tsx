@@ -34,20 +34,28 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="container max-w-4xl mx-auto h-[calc(100vh-4rem)] flex flex-col p-4">
+    <div className="container max-w-4xl mx-auto h-[calc(100vh-4rem)] flex flex-col p-4 relative">
+      {/* Gradient Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-background pointer-events-none" />
+
       {/* Header */}
-      <div className="py-4 border-b">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Sparkles className="h-6 w-6 text-primary" />
-          AI 쇼핑 어시스턴트
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          자연스럽게 물어보세요. 예: "편한 러닝화 추천해줘"
-        </p>
+      <div className="relative py-6 mb-2">
+        <div className="glass-card p-4">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <div className="relative">
+              <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+              <div className="absolute inset-0 h-6 w-6 bg-primary/20 rounded-full blur-xl animate-pulse" />
+            </div>
+            <span className="gradient-text">AI 쇼핑 어시스턴트</span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2 ml-8">
+            자연스럽게 물어보세요. 예: "편한 러닝화 추천해줘"
+          </p>
+        </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-4">
+      <div className="relative flex-1 overflow-y-auto py-4 space-y-4">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -55,65 +63,70 @@ export default function ChatPage() {
               message.role === "user" ? "justify-end" : "justify-start"
             }`}
           >
-            <Card
-              className={`max-w-[80%] p-4 ${
+            <div
+              className={`max-w-[80%] p-4 rounded-2xl shadow-lg transition-all duration-300 hover:shadow-xl ${
                 message.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted"
+                  ? "glass-card bg-gradient-to-br from-primary to-accent text-white ml-12"
+                  : "glass-card bg-white/80 border-2 border-white/40 mr-12"
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-              <p
-                className={`text-xs mt-2 ${
-                  message.role === "user"
-                    ? "text-primary-foreground/70"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {new Date(message.createdAt || Date.now()).toLocaleTimeString("ko-KR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </p>
-            </Card>
+              <div className="relative z-10">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                <p
+                  className={`text-xs mt-2 ${
+                    message.role === "user"
+                      ? "text-white/70"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {new Date(message.createdAt || Date.now()).toLocaleTimeString("ko-KR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            </div>
           </div>
         ))}
         {isLoading && (
           <div className="flex justify-start">
-            <Card className="max-w-[80%] p-4 bg-muted">
+            <div className="max-w-[80%] p-4 glass-card bg-white/80 border-2 border-white/40 rounded-2xl mr-12">
               <div className="flex gap-2">
-                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-100" />
-                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-200" />
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
               </div>
-            </Card>
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
-      <div className="py-4 border-t">
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <Input
-            placeholder="메시지를 입력하세요..."
-            value={input}
-            onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
-            disabled={isLoading}
-            className="flex-1"
-          />
-          <Button
-            type="submit"
-            disabled={!input.trim() || isLoading}
-            size="icon"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </form>
-        <p className="text-xs text-muted-foreground mt-2">
-          Enter를 눌러 전송 • Shift+Enter로 줄바꿈
-        </p>
+      <div className="relative py-4">
+        <div className="glass-card p-3">
+          <form onSubmit={handleSubmit} className="flex gap-3">
+            <Input
+              placeholder="메시지를 입력하세요..."
+              value={input}
+              onChange={handleInputChange}
+              onKeyPress={handleKeyPress}
+              disabled={isLoading}
+              className="flex-1 border-0 bg-white/50 focus:bg-white/80 transition-all duration-300 text-base h-12"
+            />
+            <Button
+              type="submit"
+              disabled={!input.trim() || isLoading}
+              size="icon"
+              className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent hover:shadow-lg transition-all duration-300 hover:scale-105"
+            >
+              <Send className="h-5 w-5" />
+            </Button>
+          </form>
+          <p className="text-xs text-muted-foreground mt-2 text-center">
+            Enter를 눌러 전송 • Shift+Enter로 줄바꿈
+          </p>
+        </div>
       </div>
     </div>
   );

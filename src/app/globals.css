@@ -10,20 +10,21 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Modern AI-focused color palette */
+    --primary: 250 100% 65%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 280 80% 65%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --ring: 250 100% 65%;
+    --radius: 0.75rem;
   }
 
   .dark {
@@ -55,5 +56,64 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  /* Glassmorphism utilities */
+  .glass {
+    @apply backdrop-blur-md bg-white/70 border border-white/20 shadow-lg;
+  }
+
+  .glass-dark {
+    @apply backdrop-blur-md bg-gray-900/70 border border-gray-700/50 shadow-lg;
+  }
+
+  .glass-card {
+    @apply backdrop-blur-lg bg-white/60 border border-white/30 shadow-xl rounded-2xl;
+  }
+
+  .glass-button {
+    @apply backdrop-blur-md bg-white/40 hover:bg-white/60 border border-white/50
+           transition-all duration-300 hover:shadow-lg;
+  }
+
+  /* AI-specific effects */
+  .ai-glow {
+    @apply relative overflow-hidden;
+  }
+
+  .ai-glow::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0;
+    animation: shimmer 2s linear infinite;
+  }
+
+  .ai-badge {
+    @apply inline-flex items-center gap-1 px-2 py-1 rounded-full
+           bg-gradient-to-r from-primary/10 to-accent/10
+           border border-primary/20 text-xs font-medium;
+  }
+
+  /* Smooth gradient backgrounds */
+  .gradient-bg {
+    @apply bg-gradient-to-br from-primary/5 via-accent/5 to-background;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+  }
+
+  /* Trust level indicators */
+  .trust-high {
+    @apply border-l-4 border-green-500 bg-green-50/50;
+  }
+
+  .trust-medium {
+    @apply border-l-4 border-blue-500 bg-blue-50/50;
+  }
+
+  .trust-normal {
+    @apply border-l-4 border-gray-300 bg-gray-50/50;
   }
 }
