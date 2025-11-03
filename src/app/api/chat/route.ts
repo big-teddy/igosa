@@ -1,6 +1,8 @@
 import { Configuration, OpenAIApi } from 'openai-edge';
 import { OpenAIStream, StreamingTextResponse } from 'ai';
 import { searchProducts } from '@/lib/data/mock-products';
+import { getFriendPurchases, getSocialReviewsByProduct } from '@/lib/data/mock-social';
+import { getInfluencerReviewsByProduct, getInfluencerReviewSummary } from '@/lib/data/mock-influencer';
 
 // Edge Runtime for better performance
 export const runtime = 'edge';
@@ -12,27 +14,47 @@ export async function POST(req: Request) {
     // 쇼핑 어시스턴트 시스템 프롬프트
     const systemPrompt = `당신은 한국 쇼핑 전문가 AI 어시스턴트 "이거사"입니다.
 
-역할:
-- 사용자가 원하는 제품을 자연어로 이해합니다
-- 친절하고 전문적으로 제품을 추천합니다
-- 가격, 스펙, 리뷰를 고려하여 최적의 선택을 도와줍니다
-- 항상 존댓말(해요체)을 사용합니다
+핵심 차별점: 다층 신뢰 소스 기반 추천
+당신은 단순 가격 비교가 아닌, 신뢰할 수 있는 여러 출처의 정보를 종합하여 설명 가능한 추천을 제공합니다.
+
+신뢰 소스 우선순위:
+1️⃣ 친구/지인 (최고 신뢰도)
+   - 친구가 구매했거나 리뷰를 남긴 제품은 반드시 우선 언급
+   - "친구 OOO님이 구매하셨어요" 형태로 표현
+   - 친구의 실제 리뷰 내용 인용
+
+2️⃣ 인플루언서/유튜버 (전문성)
+   - 해당 분야 전문가의 리뷰 요약
+   - "테크리뷰어 (24만 팔로워) 리뷰에서..." 형태로 표현
+   - 주요 장점/단점 강조
+
+3️⃣ 일반 사용자 리뷰 (대중 의견)
+   - 평균 평점과 리뷰 수
+   - 주요 장점/단점 요약
+
+추천 형식 (반드시 이 구조를 따르세요):
+[제품명 추천]
+
+📊 추천 근거:
+✅ [가장 중요한 근거 1] (친구 리뷰가 있다면 최우선)
+✅ [근거 2] (인플루언서 리뷰)
+✅ [근거 3] (일반 리뷰, 가격, 스펙)
+
+💰 가격: [최저가 정보]
+⭐ 평점: [평균 평점]
+
+[간단한 추가 설명]
 
 응답 스타일:
-- 간결하고 명확하게
-- 구체적인 제품명과 가격 언급
-- 추천 이유를 반드시 설명
-- 이모지를 적절히 사용 (💰, ⭐, 🏃, 📦 등)
+- 항상 존댓말(해요체) 사용
+- 추천 근거를 명확하게 제시 (설명 가능한 AI)
+- 이모지를 적절히 사용하되 과하지 않게
+- 간결하고 구조화된 형태
 
 제약사항:
-- 실제 제품 정보가 없을 때는 "현재 실시간 가격 정보를 불러올 수 없습니다"라고 안내
-- 확실하지 않은 정보는 추측하지 않음
-- 항상 사용자의 예산과 용도를 고려
-
-도구 사용:
-- 사용자가 제품을 찾거나 추천을 요청하면 search_products 함수를 사용하세요
-- 검색 결과가 있으면 구체적인 제품 정보를 포함하여 추천하세요
-- 제품 정보에는 가격, 평점, 리뷰 수, 최저가 정보를 포함하세요`;
+- 제공된 정보만 사용하고 추측하지 않음
+- 친구/인플루언서 정보가 없으면 언급하지 않음
+- 항상 사용자의 예산과 용도를 고려`;
 
     // 마지막 사용자 메시지에서 검색어 추출
     const lastUserMessage = messages[messages.length - 1]?.content || '';
@@ -58,19 +80,56 @@ export async function POST(req: Request) {
       if (searchQuery) {
         const products = searchProducts(searchQuery);
         if (products.length > 0) {
-          productsContext = `\n\n검색된 제품 정보:\n${products.slice(0, 3).map((p, i) => {
+          // Mock: 실제로는 로그인한 사용자 ID 사용
+          const userId = 'user-1';
+
+          productsContext = `\n\n검색된 제품 정보 (다층 신뢰 소스 포함):\n${products.slice(0, 3).map((p, i) => {
             const lowestPrice = p.prices.reduce((min, curr) =>
               curr.total < min.total ? curr : min, p.prices[0]
             );
+
+            // 1️⃣ 친구 구매 및 리뷰 정보
+            const friendPurchases = getFriendPurchases(userId, p.id);
+            const socialReviews = getSocialReviewsByProduct(p.id);
+            let friendContext = '';
+            if (friendPurchases.length > 0) {
+              friendContext = `\n   🙋 친구 구매: ${friendPurchases.map(f => f.name).join(', ')} (${friendPurchases.length}명)`;
+            }
+            if (socialReviews.length > 0) {
+              friendContext += `\n   💬 친구 리뷰:\n${socialReviews.map(r =>
+                `      - ${r.userName}: ⭐${r.rating}/5 "${r.content}"`
+              ).join('\n')}`;
+            }
+
+            // 2️⃣ 인플루언서 리뷰 정보
+            const influencerReviews = getInfluencerReviewsByProduct(p.id);
+            const influencerSummary = getInfluencerReviewSummary(p.id);
+            let influencerContext = '';
+            if (influencerReviews.length > 0) {
+              influencerContext = `\n   📹 인플루언서 리뷰 (${influencerReviews.length}개, ${influencerSummary?.recommendPercent}% 추천):\n${influencerReviews.slice(0, 2).map(r =>
+                `      - ${r.influencerName} (${r.platform}, ${(r.influencerFollowers / 10000).toFixed(1)}만): ${r.summary}`
+              ).join('\n')}`;
+
+              if (influencerSummary) {
+                influencerContext += `\n   ✅ 주요 장점: ${influencerSummary.topPros.join(', ')}`;
+                if (influencerSummary.topCons.length > 0) {
+                  influencerContext += `\n   ⚠️  주요 단점: ${influencerSummary.topCons.join(', ')}`;
+                }
+              }
+            }
+
             return `${i + 1}. ${p.name}
    - 브랜드: ${p.brand}
    - 가격: ₩${p.price.toLocaleString()}
-   - 평점: ${p.rating}/5.0 (${p.reviewCount}개 리뷰)
    - 최저가: ₩${lowestPrice.total.toLocaleString()} (${lowestPrice.platform})
-   - 설명: ${p.description}`;
+   - 평점: ${p.rating}/5.0 (${p.reviewCount}개 리뷰)
+   - 설명: ${p.description}${friendContext}${influencerContext}`;
           }).join('\n\n')}
 
-위 제품들을 참고하여 사용자에게 추천해주세요.`;
+위 정보를 바탕으로 다층 신뢰 소스 기반 추천을 제공하세요.
+- 친구 정보가 있는 제품은 최우선으로 추천
+- 인플루언서 리뷰의 핵심 포인트 강조
+- 추천 근거를 명확하게 구조화하여 제시`;
         }
       }
     }
