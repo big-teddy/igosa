@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut, Package } from "lucide-react";
+import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut, Package, Users } from "lucide-react";
 
 export function Header() {
   const router = useRouter();
@@ -41,11 +41,11 @@ export function Header() {
               AI 검색
             </Link>
             <Link
-              href="/products"
+              href="/feed"
               className="text-sm font-medium transition-colors hover:text-primary flex items-center gap-2"
             >
-              <ShoppingCart className="h-4 w-4" />
-              제품 비교
+              <Users className="h-4 w-4" />
+              친구 피드
             </Link>
             <Link
               href="/nego-deals"
