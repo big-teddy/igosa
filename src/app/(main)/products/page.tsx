@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/products/product-card";
@@ -23,18 +24,22 @@ interface Product {
 }
 
 export default function ProductsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get('q') || '';
+
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [sortBy, setSortBy] = useState("price");
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  const handleSearch = async (query?: string) => {
+    const searchTerm = query || searchQuery;
+    if (!searchTerm.trim()) return;
 
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/products/search?q=${encodeURIComponent(searchQuery)}&sort=${sortBy}`
+        `/api/products/search?q=${encodeURIComponent(searchTerm)}&sort=${sortBy}`
       );
       const data = await res.json();
       if (data.success) {
@@ -47,10 +52,12 @@ export default function ProductsPage() {
     }
   };
 
-  // Load all products on mount
+  // Load products when URL query changes or sort changes
   useEffect(() => {
-    handleSearch();
-  }, [sortBy]);
+    if (initialQuery) {
+      handleSearch(initialQuery);
+    }
+  }, [initialQuery, sortBy]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {

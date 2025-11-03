@@ -1,14 +1,36 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, ShoppingCart, TrendingDown, Sparkles } from "lucide-react";
+import { MessageSquare, ShoppingCart, TrendingDown, Sparkles, Search } from "lucide-react";
 
 export default function Home() {
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/products?q=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  const quickSearches = [
+    "러닝화",
+    "노트북",
+    "무선 이어폰",
+    "스마트워치",
+  ];
+
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Hero Section */}
+      {/* Hero Section with Search */}
       <section className="flex-1 flex flex-col items-center justify-center p-8 md:p-24 bg-gradient-to-b from-background to-muted/20">
-        <div className="max-w-4xl mx-auto text-center space-y-8">
+        <div className="max-w-4xl mx-auto w-full text-center space-y-8">
           <div className="space-y-4">
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
               AI와 함께하는
@@ -19,16 +41,42 @@ export default function Home() {
               자연어로 물어보고, 실시간 가격을 비교하고, 함께 구매해요
             </p>
           </div>
+
+          {/* Search Bar */}
+          <form onSubmit={handleSearch} className="max-w-2xl mx-auto w-full">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="찾고 싶은 제품을 입력하세요... (예: 편한 러닝화, 게이밍 노트북)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-14 pl-12 pr-4 text-lg"
+              />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+              <span className="text-sm text-muted-foreground">인기 검색:</span>
+              {quickSearches.map((term) => (
+                <button
+                  key={term}
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery(term);
+                    router.push(`/products?q=${encodeURIComponent(term)}`);
+                  }}
+                  className="px-3 py-1 text-sm bg-muted hover:bg-muted/80 rounded-full transition-colors"
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+          </form>
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/chat">
-              <Button size="lg" className="text-lg px-8">
-                <MessageSquare className="mr-2 h-5 w-5" />
-                AI 검색 시작하기
-              </Button>
-            </Link>
-            <Link href="/products">
               <Button size="lg" variant="outline" className="text-lg px-8">
-                가격 비교하기
+                <MessageSquare className="mr-2 h-5 w-5" />
+                AI에게 물어보기
               </Button>
             </Link>
           </div>
