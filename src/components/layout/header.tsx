@@ -59,13 +59,19 @@ export function Header() {
         <div className="flex items-center gap-4">
           {user ? (
             <>
+              <Link href="/my">
+                <Button variant="ghost" size="sm" className="hidden md:flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  마이페이지
+                </Button>
+              </Link>
               <Link href="/orders">
                 <Button variant="ghost" size="sm" className="hidden md:flex items-center gap-2">
                   <Package className="h-4 w-4" />
                   주문내역
                 </Button>
               </Link>
-              <span className="text-sm text-muted-foreground hidden md:block">
+              <span className="text-sm text-muted-foreground hidden lg:block">
                 {user.name || user.email}님
               </span>
               <Button variant="ghost" size="icon" onClick={handleLogout} title="로그아웃">
