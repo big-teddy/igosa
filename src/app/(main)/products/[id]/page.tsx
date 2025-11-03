@@ -7,16 +7,24 @@ import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, Package, TrendingDown, ExternalLink, Heart, ChevronLeft } from "lucide-react";
+import { Star, Package, TrendingDown, ExternalLink, Heart, ChevronLeft, Users, ThumbsUp, CheckCircle } from "lucide-react";
 import { mockProducts } from "@/lib/data/mock-products";
 import { getProductReviews } from "@/lib/data/mock-reviews";
 import { toggleWishlist, isInWishlist, addToRecentlyViewed } from "@/lib/data/user-activity";
+import {
+  getFriendPurchases,
+  getSocialReviewsByProduct,
+  UserProfile,
+  SocialReview
+} from "@/lib/data/mock-social";
 
 export default function ProductDetailPage() {
   const params = useParams();
   const [product, setProduct] = useState<any | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [friendPurchases, setFriendPurchases] = useState<UserProfile[]>([]);
+  const [socialReviews, setSocialReviews] = useState<SocialReview[]>([]);
 
   useEffect(() => {
     if (params.id) {
@@ -26,6 +34,10 @@ export default function ProductDetailPage() {
         addToRecentlyViewed(foundProduct.id);
         setIsWishlisted(isInWishlist(foundProduct.id));
         setReviews(getProductReviews(foundProduct.id));
+
+        // 소셜 데이터 로드 (Mock: 실제로는 로그인 유저 ID 사용)
+        setFriendPurchases(getFriendPurchases('user-1', foundProduct.id));
+        setSocialReviews(getSocialReviewsByProduct(foundProduct.id));
       }
     }
   }, [params.id]);
@@ -149,6 +161,133 @@ export default function ProductDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Social Proof - Friend Purchases */}
+      {friendPurchases.length > 0 && (
+        <Card className="mb-8 bg-gradient-to-r from-primary/5 via-primary/3 to-background border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              <span className="text-primary">{friendPurchases.length}명의 친구</span>가 이 제품을 구매했어요
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3">
+              {friendPurchases.map((friend) => (
+                <Link key={friend.id} href={`/users/${friend.username}`}>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-background rounded-full border hover:border-primary transition-colors cursor-pointer">
+                    <div className="w-8 h-8 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden">
+                      {friend.avatar ? (
+                        <img src={friend.avatar} alt={friend.name} className="w-full h-full" />
+                      ) : (
+                        <Users className="h-4 w-4 text-primary" />
+                      )}
+                    </div>
+                    <span className="text-sm font-medium">{friend.name}</span>
+                    {friend.trustScore >= 85 && (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Social Reviews - Friend Reviews */}
+      {socialReviews.length > 0 && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ThumbsUp className="h-5 w-5" />
+              친구 리뷰
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {socialReviews.map((review) => (
+              <div key={review.id} className="p-4 bg-muted/30 rounded-lg border-l-4 border-primary">
+                <div className="flex items-start gap-3 mb-3">
+                  <Link href={`/users/${review.userId}`}>
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80">
+                      {review.userAvatar ? (
+                        <img src={review.userAvatar} alt={review.userName} className="w-full h-full" />
+                      ) : (
+                        <Users className="h-6 w-6 text-primary" />
+                      )}
+                    </div>
+                  </Link>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold">{review.userName}</span>
+                      {review.verified && (
+                        <Badge variant="secondary" className="text-xs">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          구매 인증
+                        </Badge>
+                      )}
+                      {review.recommended && (
+                        <Badge variant="outline" className="text-xs border-green-600 text-green-600">
+                          <ThumbsUp className="h-3 w-3 mr-1" />
+                          추천
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 mb-2">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i < review.rating
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-muted-foreground'
+                          }`}
+                        />
+                      ))}
+                      <span className="text-sm text-muted-foreground ml-1">
+                        {new Date(review.timestamp).toLocaleDateString('ko-KR')}
+                      </span>
+                    </div>
+                    <p className="text-sm mb-3">{review.content}</p>
+                    {review.pros.length > 0 && (
+                      <div className="mb-2">
+                        <div className="text-xs font-semibold text-green-600 mb-1">장점</div>
+                        <div className="flex flex-wrap gap-1">
+                          {review.pros.map((pro, index) => (
+                            <Badge key={index} variant="outline" className="text-xs border-green-600/30 text-green-700">
+                              {pro}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {review.cons.length > 0 && (
+                      <div className="mb-2">
+                        <div className="text-xs font-semibold text-red-600 mb-1">단점</div>
+                        <div className="flex flex-wrap gap-1">
+                          {review.cons.map((con, index) => (
+                            <Badge key={index} variant="outline" className="text-xs border-red-600/30 text-red-700">
+                              {con}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                      <span className="flex items-center gap-1">
+                        <Heart className="h-3 w-3" />
+                        {review.likesCount}
+                      </span>
+                      <span>도움됨 {review.helpfulCount}</span>
+                      <span>댓글 {review.commentsCount}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Price Comparison */}
       <Card>
