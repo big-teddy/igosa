@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, ShoppingCart, TrendingDown, Sparkles, Search } from "lucide-react";
+import { MessageSquare, ShoppingCart, TrendingDown, Sparkles, Search, ArrowRight } from "lucide-react";
+import { ProductCard } from "@/components/products/product-card";
+import { mockProducts } from "@/lib/data/mock-products";
 
 export default function Home() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [featuredProducts, setFeaturedProducts] = useState(mockProducts.slice(0, 4));
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +82,33 @@ export default function Home() {
                 AI에게 물어보기
               </Button>
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Products Section */}
+      <section className="py-20 px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-12">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-2">
+                인기 제품
+              </h2>
+              <p className="text-muted-foreground">
+                지금 가장 많이 찾는 제품들을 확인해보세요
+              </p>
+            </div>
+            <Link href="/products">
+              <Button variant="outline">
+                전체 보기
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
           </div>
         </div>
       </section>
