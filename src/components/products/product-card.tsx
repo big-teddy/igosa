@@ -1,8 +1,12 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Star, TrendingDown, Package } from "lucide-react";
+import { Star, TrendingDown, Package, Heart } from "lucide-react";
+import { toggleWishlist, isInWishlist } from "@/lib/data/user-activity";
 
 interface ProductCardProps {
   product: {
@@ -23,6 +27,19 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const [isWishlisted, setIsWishlisted] = useState(false);
+
+  useEffect(() => {
+    setIsWishlisted(isInWishlist(product.id));
+  }, [product.id]);
+
+  const handleToggleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newState = toggleWishlist(product.id);
+    setIsWishlisted(newState);
+  };
+
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
@@ -50,6 +67,17 @@ export function ProductCard({ product }: ProductCardProps) {
               {discount}%
             </div>
           )}
+          <button
+            onClick={handleToggleWishlist}
+            className="absolute top-2 right-2 w-8 h-8 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition-all hover:scale-110"
+            aria-label={isWishlisted ? "찜 취소" : "찜하기"}
+          >
+            <Heart
+              className={`h-5 w-5 ${
+                isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-600'
+              }`}
+            />
+          </button>
         </div>
       </Link>
 

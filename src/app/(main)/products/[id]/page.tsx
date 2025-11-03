@@ -2,78 +2,52 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Star, Package, TrendingDown, ExternalLink } from "lucide-react";
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  brand: string;
-  price: number;
-  originalPrice?: number;
-  imageUrl: string;
-  rating: number;
-  reviewCount: number;
-  specs: Record<string, string>;
-  prices: {
-    platform: string;
-    price: number;
-    shipping: number;
-    total: number;
-    deliveryType: string;
-    deliveryDays: number;
-    inStock: boolean;
-    url: string;
-  }[];
-  lowestPrice?: {
-    platform: string;
-    total: number;
-  };
-}
+import { Badge } from "@/components/ui/badge";
+import { Star, Package, TrendingDown, ExternalLink, Heart, ChevronLeft } from "lucide-react";
+import { mockProducts } from "@/lib/data/mock-products";
+import { getProductReviews } from "@/lib/data/mock-reviews";
+import { toggleWishlist, isInWishlist, addToRecentlyViewed } from "@/lib/data/user-activity";
 
 export default function ProductDetailPage() {
   const params = useParams();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [product, setProduct] = useState<any | null>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [isWishlisted, setIsWishlisted] = useState(false);
 
   useEffect(() => {
-    async function fetchProduct() {
-      try {
-        const res = await fetch(`/api/products/${params.id}`);
-        const data = await res.json();
-        if (data.success) {
-          setProduct(data.product);
-        }
-      } catch (error) {
-        console.error("Failed to fetch product:", error);
-      } finally {
-        setLoading(false);
+    if (params.id) {
+      const foundProduct = mockProducts.find(p => p.id === params.id);
+      if (foundProduct) {
+        setProduct(foundProduct);
+        addToRecentlyViewed(foundProduct.id);
+        setIsWishlisted(isInWishlist(foundProduct.id));
+        setReviews(getProductReviews(foundProduct.id));
       }
     }
-
-    fetchProduct();
   }, [params.id]);
 
-  if (loading) {
-    return (
-      <div className="container max-w-6xl mx-auto py-8 px-4">
-        <div className="text-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">로딩 중...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleToggleWishlist = () => {
+    if (product) {
+      const newState = toggleWishlist(product.id);
+      setIsWishlisted(newState);
+    }
+  };
 
   if (!product) {
     return (
       <div className="container max-w-6xl mx-auto py-8 px-4">
         <div className="text-center py-20">
           <p className="text-muted-foreground">제품을 찾을 수 없습니다.</p>
+          <Link href="/products" className="mt-4 inline-block">
+            <Button>
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              제품 목록으로
+            </Button>
+          </Link>
         </div>
       </div>
     );
@@ -139,11 +113,21 @@ export default function ProductDetailPage() {
               </div>
             )}
             <div className="text-4xl font-bold text-primary">
-              ₩{product.lowestPrice?.total.toLocaleString()}
+              ₩{product.prices[0].total.toLocaleString()}
             </div>
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
               <Package className="h-4 w-4" />
-              <span>{platformNames[product.lowestPrice?.platform as keyof typeof platformNames]} 최저가</span>
+              <span>{platformNames[product.prices[0].platform as keyof typeof platformNames]} 최저가</span>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={handleToggleWishlist}
+                className="flex-1"
+              >
+                <Heart className={`h-4 w-4 mr-2 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+                {isWishlisted ? '찜 취소' : '찜하기'}
+              </Button>
             </div>
           </div>
 
