@@ -1,7 +1,5 @@
-import { openai } from '@ai-sdk/openai';
-import { anthropic } from '@ai-sdk/anthropic';
-import { google } from '@ai-sdk/google';
-import { streamText, convertToCoreMessages } from 'ai';
+import { Configuration, OpenAIApi } from 'openai-edge';
+import { OpenAIStream, StreamingTextResponse } from 'ai';
 
 // Edge Runtime for better performance
 export const runtime = 'edge';
@@ -30,25 +28,27 @@ export async function POST(req: Request) {
 - 확실하지 않은 정보는 추측하지 않음
 - 항상 사용자의 예산과 용도를 고려`;
 
-    // 기본 모델: OpenAI GPT-4o-mini (빠르고 저렴)
-    // 환경변수에 따라 다른 모델 사용 가능
-    const model = openai('gpt-4o-mini');
+    // OpenAI 설정
+    const config = new Configuration({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+    const openai = new OpenAIApi(config);
 
-    // 또는 Anthropic Claude 사용 시:
-    // const model = anthropic('claude-3-5-sonnet-20241022');
-
-    // 또는 Google Gemini 사용 시:
-    // const model = google('gemini-1.5-flash');
-
-    const result = await streamText({
-      model,
-      system: systemPrompt,
-      messages: convertToCoreMessages(messages),
+    // OpenAI API 호출
+    const response = await openai.createChatCompletion({
+      model: 'gpt-4o-mini',
+      stream: true,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ],
       temperature: 0.7,
-      maxTokens: 1000,
+      max_tokens: 1000,
     });
 
-    return result.toDataStreamResponse();
+    // 스트리밍 응답 생성
+    const stream = OpenAIStream(response);
+    return new StreamingTextResponse(stream);
   } catch (error) {
     console.error('Chat API Error:', error);
     return new Response(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ interface Product {
   };
 }
 
-export default function ProductsPage() {
+function ProductsContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
 
@@ -50,6 +50,10 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearchClick = () => {
+    handleSearch();
   };
 
   // Load products when URL query changes or sort changes
@@ -86,7 +90,7 @@ export default function ProductsPage() {
               className="pl-10"
             />
           </div>
-          <Button onClick={handleSearch} disabled={loading}>
+          <Button onClick={handleSearchClick} disabled={loading}>
             {loading ? "검색 중..." : "검색"}
           </Button>
         </div>
@@ -145,5 +149,20 @@ export default function ProductsPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={
+      <div className="container max-w-7xl mx-auto py-8 px-4">
+        <div className="text-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">로딩 중...</p>
+        </div>
+      </div>
+    }>
+      <ProductsContent />
+    </Suspense>
   );
 }
