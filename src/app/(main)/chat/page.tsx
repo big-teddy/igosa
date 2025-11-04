@@ -105,7 +105,7 @@ export default function ChatPage() {
       {/* Input */}
       <div className="relative py-4">
         <div className="glass-card p-3">
-          <form onSubmit={handleSubmit} className="flex gap-3">
+          <form onSubmit={handleSubmit} className="flex gap-3" role="form" aria-label="AI 챗봇 대화">
             <Input
               placeholder="메시지를 입력하세요..."
               value={input}
@@ -113,17 +113,20 @@ export default function ChatPage() {
               onKeyPress={handleKeyPress}
               disabled={isLoading}
               className="flex-1 border-0 bg-white/50 focus:bg-white/80 transition-all duration-300 text-base h-12"
+              aria-label="AI에게 질문 입력"
+              aria-describedby="chat-help-text"
             />
             <Button
               type="submit"
               disabled={!input.trim() || isLoading}
               size="icon"
               className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent hover:shadow-lg transition-all duration-300 hover:scale-105"
+              aria-label="메시지 전송"
             >
-              <Send className="h-5 w-5" />
+              <Send className="h-5 w-5" aria-hidden="true" />
             </Button>
           </form>
-          <p className="text-xs text-muted-foreground mt-2 text-center">
+          <p id="chat-help-text" className="text-xs text-muted-foreground mt-2 text-center">
             Enter를 눌러 전송 • Shift+Enter로 줄바꿈
           </p>
         </div>

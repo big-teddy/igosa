@@ -53,7 +53,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Card className="group hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 border-white/20 hover:border-primary/30 backdrop-blur-sm bg-gradient-to-br from-white/80 to-white/60 dark:from-slate-900/80 dark:to-slate-800/60">
-      <Link href={`/products/${product.id}`}>
+      <Link href={`/products/${product.id}`} aria-label={`${product.name} 제품 상세보기`}>
         <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-muted/50 to-muted">
           <Image
             src={product.imageUrl}

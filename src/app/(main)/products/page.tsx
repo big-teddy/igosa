@@ -84,13 +84,14 @@ function ProductsContent() {
           {/* Search Bar */}
           <div className="flex gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" aria-hidden="true" />
               <Input
                 placeholder="제품명, 브랜드, 카테고리로 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
                 className="pl-12 h-12 bg-white/50 dark:bg-slate-900/50 border-2 border-white/40 focus:border-primary/50 transition-all text-base"
+                aria-label="제품 검색어 입력"
               />
             </div>
             <Button

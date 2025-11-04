@@ -61,16 +61,17 @@ export default function Home() {
           </div>
 
           {/* Search Bar */}
-          <form onSubmit={handleSearch} className="max-w-2xl mx-auto w-full">
+          <form onSubmit={handleSearch} className="max-w-2xl mx-auto w-full" role="search">
             <div className="glass-card p-2">
               <div className="relative">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-6 w-6 text-primary" />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-6 w-6 text-primary" aria-hidden="true" />
                 <Input
                   type="text"
                   placeholder="찾고 싶은 제품을 입력하세요... (예: 편한 러닝화, 게이밍 노트북)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-16 pl-14 pr-4 text-lg bg-white/50 dark:bg-slate-900/50 border-0 focus:bg-white dark:focus:bg-slate-900 transition-all"
+                  aria-label="제품 검색"
                 />
               </div>
             </div>
