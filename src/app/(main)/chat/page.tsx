@@ -14,7 +14,12 @@ import {
   StopCircle,
   ThumbsUp,
   ThumbsDown,
-  RotateCcw
+  RotateCcw,
+  ExternalLink,
+  MessageCircle,
+  Bookmark,
+  BookmarkCheck,
+  Settings2
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ProductCard } from "@/components/products/product-card";
@@ -24,6 +29,34 @@ import { searchProducts } from "@/lib/data/mock-products";
 function extractProductNames(text: string): string[] {
   const productKeywords = ['러닝화', '운동화', '노트북', '맥북', '이어폰', '에어팟', '스마트워치', '애플워치'];
   return productKeywords.filter(keyword => text.includes(keyword));
+}
+
+// Generate intelligent follow-up questions (Perplexity-style)
+function generateFollowUpQuestions(messageContent: string, productKeywords: string[]): string[] {
+  const questions: string[] = [];
+
+  if (productKeywords.length > 0) {
+    const product = productKeywords[0];
+    questions.push(`${product} 중에서 가장 저렴한 건 어떤 거야?`);
+    questions.push(`친구들은 어떤 ${product} 사용하고 있어?`);
+    questions.push(`${product} 네고딜 진행 중인 거 있어?`);
+  }
+
+  if (messageContent.includes('추천') || messageContent.includes('찾')) {
+    questions.push('다른 브랜드 제품도 비교해줘');
+    questions.push('가격대를 더 낮춰서 찾아줘');
+  }
+
+  return questions.slice(0, 3);
+}
+
+// Extract source/platform from context (Perplexity-style citations)
+function extractSources(text: string): Array<{platform: string; url: string}> {
+  const sources = [];
+  if (text.includes('쿠팡')) sources.push({ platform: '쿠팡', url: 'https://www.coupang.com' });
+  if (text.includes('네이버')) sources.push({ platform: '네이버쇼핑', url: 'https://shopping.naver.com' });
+  if (text.includes('11번가')) sources.push({ platform: '11번가', url: 'https://www.11st.co.kr' });
+  return sources;
 }
 
 // 제안 질문 데이터
@@ -52,6 +85,8 @@ export default function ChatPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down' | null>>({});
+  const [savedMessages, setSavedMessages] = useState<Set<string>>(new Set());
+  const [detailMode, setDetailMode] = useState<'simple' | 'detailed'>('simple');
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
