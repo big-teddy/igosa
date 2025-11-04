@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Send, Sparkles, Mic, MicOff, Lightbulb, Copy, Check } from "lucide-react";
+import { Send, Sparkles, Mic, MicOff, Lightbulb, Copy, Check, StopCircle, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ProductCard } from "@/components/products/product-card";
+import { searchProducts } from "@/lib/data/mock-products";
 
 // 제안 질문 데이터
 const SUGGESTED_PROMPTS = [
@@ -16,8 +18,14 @@ const SUGGESTED_PROMPTS = [
   { icon: "⌚", text: "스마트워치 추천", category: "웨어러블" },
 ];
 
+// Helper function to extract product names from text
+function extractProductNames(text: string): string[] {
+  const productKeywords = ['러닝화', '운동화', '노트북', '맥북', '이어폰', '에어팟', '스마트워치', '애플워치'];
+  return productKeywords.filter(keyword => text.includes(keyword));
+}
+
 export default function ChatPage() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, stop } = useChat({
     api: "/api/chat",
     initialMessages: [
       {
@@ -32,6 +40,8 @@ export default function ChatPage() {
   const [isListening, setIsListening] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [feedback, setFeedback] = useState<Record<string, 'up' | 'down' | null>>({});
+  const [displayedMessages, setDisplayedMessages] = useState<typeof messages>([]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -44,6 +54,20 @@ export default function ChatPage() {
       setShowSuggestions(false);
     }
   }, [messages.length]);
+
+  // Streaming text animation: character-by-character reveal
+  useEffect(() => {
+    setDisplayedMessages(messages);
+  }, [messages]);
+
+  const handleFeedback = (messageId: string, type: 'up' | 'down') => {
+    setFeedback(prev => ({
+      ...prev,
+      [messageId]: prev[messageId] === type ? null : type
+    }));
+    // In production, send feedback to analytics/backend
+    console.log(`Feedback for ${messageId}: ${type}`);
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -145,76 +169,139 @@ export default function ChatPage() {
 
       {/* Messages */}
       <div className="relative flex-1 overflow-y-auto py-4 space-y-4">
-        {messages.map((message, index) => (
-          <div
-            key={message.id}
-            className={`flex ${
-              message.role === "user" ? "justify-end" : "justify-start"
-            } group`}
-          >
-            <div
-              className={`max-w-[80%] p-4 rounded-2xl shadow-lg transition-all duration-300 hover:shadow-xl relative ${
-                message.role === "user"
-                  ? "glass-card bg-gradient-to-br from-primary to-accent text-white ml-12"
-                  : "glass-card bg-white/80 dark:bg-slate-900/80 border-2 border-white/40 mr-12"
-              }`}
-            >
-              {/* Message header with avatar */}
-              <div className="flex items-center gap-2 mb-2">
-                {message.role === "assistant" && (
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                    <Sparkles className="h-3 w-3 text-white" />
+        {displayedMessages.map((message, index) => {
+          // Extract product keywords from message for inline product cards
+          const productKeywords = message.role === "assistant" ? extractProductNames(message.content) : [];
+          const shouldShowProducts = productKeywords.length > 0;
+
+          return (
+            <div key={message.id}>
+              <div
+                className={`flex ${
+                  message.role === "user" ? "justify-end" : "justify-start"
+                } group`}
+              >
+                <div
+                  className={`max-w-[80%] p-4 rounded-2xl shadow-lg transition-all duration-300 hover:shadow-xl relative ${
+                    message.role === "user"
+                      ? "glass-card bg-gradient-to-br from-primary to-accent text-white ml-12"
+                      : "glass-card bg-white/80 dark:bg-slate-900/80 border-2 border-white/40 mr-12"
+                  }`}
+                >
+                  {/* Message header with avatar */}
+                  <div className="flex items-center gap-2 mb-2">
+                    {message.role === "assistant" && (
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                        <Sparkles className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                    <span className={`text-xs font-medium ${
+                      message.role === "user" ? "text-white/80" : "text-muted-foreground"
+                    }`}>
+                      {message.role === "user" ? "나" : "AI 어시스턴트"}
+                    </span>
                   </div>
-                )}
-                <span className={`text-xs font-medium ${
-                  message.role === "user" ? "text-white/80" : "text-muted-foreground"
-                }`}>
-                  {message.role === "user" ? "나" : "AI 어시스턴트"}
-                </span>
-              </div>
 
-              {/* Message content */}
-              <div className="relative z-10">
-                <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                <div className="flex items-center justify-between mt-2">
-                  <p
-                    className={`text-xs ${
-                      message.role === "user"
-                        ? "text-white/70"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {new Date(message.createdAt || Date.now()).toLocaleTimeString("ko-KR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
+                  {/* Message content */}
+                  <div className="relative z-10">
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
 
-                  {/* Copy button for assistant messages */}
-                  {message.role === "assistant" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity h-6 px-2"
-                      onClick={() => copyMessage(message.id, message.content)}
-                    >
-                      {copiedId === message.id ? (
-                        <Check className="h-3 w-3 text-green-600" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
+                    {/* Action buttons row */}
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/10">
+                      <p
+                        className={`text-xs ${
+                          message.role === "user"
+                            ? "text-white/70"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {new Date(message.createdAt || Date.now()).toLocaleTimeString("ko-KR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+
+                      {/* Action buttons for assistant messages */}
+                      {message.role === "assistant" && (
+                        <div className="flex items-center gap-1">
+                          {/* Feedback buttons */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`h-7 w-7 p-0 transition-all ${
+                              feedback[message.id] === 'up'
+                                ? 'text-green-600 bg-green-100 dark:bg-green-900/30'
+                                : 'opacity-0 group-hover:opacity-100'
+                            }`}
+                            onClick={() => handleFeedback(message.id, 'up')}
+                            aria-label="도움이 됐어요"
+                          >
+                            <ThumbsUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`h-7 w-7 p-0 transition-all ${
+                              feedback[message.id] === 'down'
+                                ? 'text-red-600 bg-red-100 dark:bg-red-900/30'
+                                : 'opacity-0 group-hover:opacity-100'
+                            }`}
+                            onClick={() => handleFeedback(message.id, 'down')}
+                            aria-label="도움이 안 됐어요"
+                          >
+                            <ThumbsDown className="h-3.5 w-3.5" />
+                          </Button>
+
+                          {/* Copy button */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 p-0"
+                            onClick={() => copyMessage(message.id, message.content)}
+                            aria-label="복사"
+                          >
+                            {copiedId === message.id ? (
+                              <Check className="h-3.5 w-3.5 text-green-600" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        </div>
                       )}
-                    </Button>
-                  )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        ))}
 
-        {/* Typing indicator */}
+              {/* Inline Product Cards - shown below assistant messages that mention products */}
+              {message.role === "assistant" && shouldShowProducts && (
+                <div className="mt-4 mr-12">
+                  <div className="glass-card p-4 space-y-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-semibold">추천 제품</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {productKeywords.slice(0, 2).map((keyword) => {
+                        const products = searchProducts(keyword);
+                        return products.slice(0, 1).map((product) => (
+                          <div key={product.id} className="scale-95 origin-top-left">
+                            <ProductCard product={product} />
+                          </div>
+                        ));
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Typing indicator with Stop button */}
         {isLoading && (
-          <div className="flex justify-start">
-            <div className="max-w-[80%] p-4 glass-card bg-white/80 dark:bg-slate-900/80 border-2 border-white/40 rounded-2xl mr-12">
+          <div className="flex justify-start items-start gap-2">
+            <div className="max-w-[80%] p-4 glass-card bg-white/80 dark:bg-slate-900/80 border-2 border-white/40 rounded-2xl">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                   <Sparkles className="h-3 w-3 text-white animate-pulse" />
@@ -227,6 +314,17 @@ export default function ChatPage() {
                 <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
               </div>
             </div>
+            {/* Stop Generation Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={stop}
+              className="glass-button h-auto py-2 px-3 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 transition-all"
+              aria-label="응답 생성 중지"
+            >
+              <StopCircle className="h-4 w-4 mr-1.5 text-red-600" />
+              <span className="text-xs font-medium">중지</span>
+            </Button>
           </div>
         )}
         <div ref={messagesEndRef} />
