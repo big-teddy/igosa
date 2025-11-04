@@ -41,7 +41,6 @@ export default function ChatPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down' | null>>({});
-  const [displayedMessages, setDisplayedMessages] = useState<typeof messages>([]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -55,11 +54,6 @@ export default function ChatPage() {
     }
   }, [messages.length]);
 
-  // Streaming text animation: character-by-character reveal
-  useEffect(() => {
-    setDisplayedMessages(messages);
-  }, [messages]);
-
   const handleFeedback = (messageId: string, type: 'up' | 'down') => {
     setFeedback(prev => ({
       ...prev,
@@ -69,7 +63,7 @@ export default function ChatPage() {
     console.log(`Feedback for ${messageId}: ${type}`);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e as any);
@@ -101,40 +95,56 @@ export default function ChatPage() {
       return;
     }
 
-    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'ko-KR';
-    recognition.continuous = false;
+    try {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'ko-KR';
+      recognition.continuous = false;
+      recognition.interimResults = false;
 
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
 
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      const syntheticEvent = {
-        preventDefault: () => {},
-        target: { value: transcript },
-      } as any;
-      handleInputChange(syntheticEvent);
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        const syntheticEvent = {
+          preventDefault: () => {},
+          target: { value: transcript },
+        } as any;
+        handleInputChange(syntheticEvent);
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error === 'not-allowed') {
+          alert('마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (error) {
+      console.error('Failed to initialize speech recognition:', error);
       setIsListening(false);
-    };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.start();
+      alert('음성 인식을 시작할 수 없습니다.');
+    }
   };
 
-  const copyMessage = (messageId: string, content: string) => {
-    navigator.clipboard.writeText(content);
-    setCopiedId(messageId);
-    setTimeout(() => setCopiedId(null), 2000);
+  const copyMessage = async (messageId: string, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedId(messageId);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy message:', error);
+      alert('복사에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   return (
@@ -169,7 +179,7 @@ export default function ChatPage() {
 
       {/* Messages */}
       <div className="relative flex-1 overflow-y-auto py-4 space-y-4">
-        {displayedMessages.map((message, index) => {
+        {messages.map((message, index) => {
           // Extract product keywords from message for inline product cards
           const productKeywords = message.role === "assistant" ? extractProductNames(message.content) : [];
           const shouldShowProducts = productKeywords.length > 0;
@@ -282,13 +292,16 @@ export default function ChatPage() {
                       <span className="text-sm font-semibold">추천 제품</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {productKeywords.slice(0, 2).map((keyword) => {
+                      {productKeywords.slice(0, 2).map((keyword, keywordIdx) => {
                         const products = searchProducts(keyword);
-                        return products.slice(0, 1).map((product) => (
-                          <div key={product.id} className="scale-95 origin-top-left">
+                        const product = products[0];
+                        if (!product) return null;
+
+                        return (
+                          <div key={`${message.id}-product-${keywordIdx}`} className="scale-95 origin-top-left">
                             <ProductCard product={product} />
                           </div>
-                        ));
+                        );
                       })}
                     </div>
                   </div>
@@ -367,7 +380,7 @@ export default function ChatPage() {
               placeholder="메시지를 입력하세요..."
               value={input}
               onChange={handleInputChange}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               disabled={isLoading}
               className="flex-1 border-0 bg-white/50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 transition-all duration-300 text-base h-12"
               aria-label="AI에게 질문 입력"
