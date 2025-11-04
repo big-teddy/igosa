@@ -70,84 +70,108 @@ function ProductsContent() {
   };
 
   return (
-    <div className="container max-w-7xl mx-auto py-8 px-4">
-      {/* Header */}
-      <div className="space-y-4 mb-8">
-        <h1 className="text-3xl font-bold">제품 검색</h1>
-        <p className="text-muted-foreground">
-          다양한 쇼핑몰의 가격을 비교하고 최저가를 찾아보세요
-        </p>
-
-        {/* Search Bar */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="제품명, 브랜드, 카테고리로 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="pl-10"
-            />
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+      <div className="container max-w-7xl mx-auto py-8 px-4">
+        {/* Header */}
+        <div className="glass-card p-6 mb-8 space-y-4">
+          <div>
+            <h1 className="text-4xl font-bold gradient-text mb-2">제품 검색</h1>
+            <p className="text-muted-foreground">
+              다양한 쇼핑몰의 가격을 비교하고 최저가를 찾아보세요
+            </p>
           </div>
-          <Button onClick={handleSearchClick} disabled={loading}>
-            {loading ? "검색 중..." : "검색"}
-          </Button>
-        </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-4">
-          <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
-          <div className="flex gap-2">
+          {/* Search Bar */}
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
+              <Input
+                placeholder="제품명, 브랜드, 카테고리로 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="pl-12 h-12 bg-white/50 dark:bg-slate-900/50 border-2 border-white/40 focus:border-primary/50 transition-all text-base"
+              />
+            </div>
             <Button
-              variant={sortBy === "price" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSortBy("price")}
+              onClick={handleSearchClick}
+              disabled={loading}
+              className="h-12 px-8 bg-gradient-to-r from-primary to-accent hover:shadow-lg transition-all duration-300 hover:scale-105"
             >
-              최저가순
-            </Button>
-            <Button
-              variant={sortBy === "rating" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSortBy("rating")}
-            >
-              평점순
-            </Button>
-            <Button
-              variant={sortBy === "reviews" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSortBy("reviews")}
-            >
-              리뷰많은순
+              {loading ? "검색 중..." : "검색"}
             </Button>
           </div>
+
+          {/* Filters */}
+          <div className="flex items-center gap-4 pt-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="font-medium">정렬</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant={sortBy === "price" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSortBy("price")}
+                className={sortBy === "price" ? "bg-gradient-to-r from-primary to-accent" : "glass-button"}
+              >
+                최저가순
+              </Button>
+              <Button
+                variant={sortBy === "rating" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSortBy("rating")}
+                className={sortBy === "rating" ? "bg-gradient-to-r from-primary to-accent" : "glass-button"}
+              >
+                평점순
+              </Button>
+              <Button
+                variant={sortBy === "reviews" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSortBy("reviews")}
+                className={sortBy === "reviews" ? "bg-gradient-to-r from-primary to-accent" : "glass-button"}
+              >
+                리뷰많은순
+              </Button>
+            </div>
+          </div>
         </div>
+
+        {/* Results */}
+        {loading ? (
+          <div className="glass-card text-center py-20">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary/30 border-t-primary mx-auto"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-8 w-8 bg-primary/20 rounded-full animate-pulse"></div>
+              </div>
+            </div>
+            <p className="mt-6 text-muted-foreground font-medium">검색 중...</p>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="glass-card text-center py-20">
+            <div className="text-6xl mb-4 opacity-20">🔍</div>
+            <p className="text-muted-foreground text-lg">
+              검색 결과가 없습니다. 다른 검색어를 입력해보세요.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="mb-6 flex items-center gap-2">
+              <div className="glass-card px-4 py-2 inline-block">
+                <span className="text-sm font-medium">
+                  총 <span className="text-primary font-bold text-lg">{products.length}</span>개의 제품
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
-
-      {/* Results */}
-      {loading ? (
-        <div className="text-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">검색 중...</p>
-        </div>
-      ) : products.length === 0 ? (
-        <div className="text-center py-20">
-          <p className="text-muted-foreground">
-            검색 결과가 없습니다. 다른 검색어를 입력해보세요.
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="mb-4 text-sm text-muted-foreground">
-            총 {products.length}개의 제품
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 }

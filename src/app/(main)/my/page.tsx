@@ -344,7 +344,7 @@ export default function MyPage() {
                           <Link href={`/products/${product.id}`}>
                             <div className="aspect-video bg-muted relative overflow-hidden">
                               <img
-                                src={product.image}
+                                src={product.imageUrl}
                                 alt={product.name}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                               />
@@ -411,7 +411,7 @@ export default function MyPage() {
                           <div className="border rounded-lg overflow-hidden hover:border-primary transition-colors">
                             <div className="aspect-video bg-muted">
                               <img
-                                src={product.image}
+                                src={product.imageUrl}
                                 alt={product.name}
                                 className="w-full h-full object-cover"
                               />

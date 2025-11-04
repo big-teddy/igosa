@@ -164,7 +164,7 @@ export default function ProductDetailPage() {
                 {Object.entries(product.specs).map(([key, value]) => (
                   <div key={key} className="flex justify-between py-2 border-b last:border-0">
                     <dt className="text-muted-foreground">{key}</dt>
-                    <dd className="font-medium">{value}</dd>
+                    <dd className="font-medium">{String(value)}</dd>
                   </div>
                 ))}
               </dl>
@@ -465,7 +465,7 @@ export default function ProductDetailPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {product.prices.map((priceInfo, index) => (
+            {product.prices.map((priceInfo: any, index: number) => (
               <div
                 key={index}
                 className={`p-4 rounded-lg border-2 ${

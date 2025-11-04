@@ -1,12 +1,15 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { XCircle, Home, RotateCcw } from "lucide-react";
 
-export default function PaymentFailPage() {
+export const dynamic = 'force-dynamic';
+
+function PaymentFailContent() {
   const searchParams = useSearchParams();
   const code = searchParams.get('code');
   const message = searchParams.get('message');
@@ -81,5 +84,20 @@ export default function PaymentFailPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function PaymentFailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">로딩 중...</p>
+        </div>
+      </div>
+    }>
+      <PaymentFailContent />
+    </Suspense>
   );
 }

@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { loadTossPayments } from "@tosspayments/payment-sdk";
+
+export const dynamic = 'force-dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,14 +22,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-type PaymentMethod = 'card' | 'transfer' | 'phone' | 'easy';
+type PaymentMethod = '카드' | '계좌이체' | '휴대폰' | '토스페이';
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const dealId = searchParams.get('dealId');
   const [deal, setDeal] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('카드');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -116,10 +118,10 @@ export default function CheckoutPage() {
   }
 
   const paymentMethods = [
-    { id: 'card' as PaymentMethod, label: '카드결제', icon: CreditCard, description: '신용/체크카드' },
-    { id: 'transfer' as PaymentMethod, label: '계좌이체', icon: Building, description: '실시간 계좌이체' },
-    { id: 'phone' as PaymentMethod, label: '휴대폰', icon: Smartphone, description: '휴대폰 소액결제' },
-    { id: 'easy' as PaymentMethod, label: '간편결제', icon: Wallet, description: '카카오페이, 토스페이' },
+    { id: '카드' as PaymentMethod, label: '카드결제', icon: CreditCard, description: '신용/체크카드' },
+    { id: '계좌이체' as PaymentMethod, label: '계좌이체', icon: Building, description: '실시간 계좌이체' },
+    { id: '휴대폰' as PaymentMethod, label: '휴대폰', icon: Smartphone, description: '휴대폰 소액결제' },
+    { id: '토스페이' as PaymentMethod, label: '간편결제', icon: Wallet, description: '토스페이' },
   ];
 
   return (
@@ -339,5 +341,20 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">로딩 중...</p>
+        </div>
+      </div>
+    }>
+      <CheckoutContent />
+    </Suspense>
   );
 }
