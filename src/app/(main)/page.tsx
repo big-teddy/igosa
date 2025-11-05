@@ -16,6 +16,7 @@ import {
   Users,
   User,
 } from "lucide-react";
+import { generateMockAIResponse, simulateNetworkDelay } from "@/lib/mock-ai-responses";
 
 // AI 어시스턴트 핵심 기능
 const AI_FEATURES = [
@@ -99,49 +100,81 @@ export default function Home() {
       // Simulate typing indicator
       setIsTyping(true);
 
-      // 실제로는 AI API 호출
-      // 지금은 시뮬레이션
-      setTimeout(() => {
+      try {
+        // Mock AI API 호출 (실제 API 연동 전)
+        await simulateNetworkDelay();
+
+        const aiResponses = generateMockAIResponse(query);
+
+        setIsTyping(false);
+
+        // Add AI responses
+        const newResults = aiResponses.map(response => ({
+          type: response.type === 'text' ? 'ai-response' : 'products',
+          content: response.content,
+          products: response.products,
+          timestamp: new Date().toISOString()
+        }));
+
+        setSearchResults(prev => [...prev, ...newResults]);
+        setIsSearching(false);
+      } catch (error) {
+        console.error('Search error:', error);
         setIsTyping(false);
         setSearchResults(prev => [
           ...prev,
           {
             type: 'ai-response',
-            content: `"${query}"에 대한 AI 분석 결과입니다. 여러 쇼핑몰의 가격을 비교하고 최적의 제품을 찾아드리겠습니다.`,
+            content: '죄송합니다. 검색 중 오류가 발생했습니다. 다시 시도해주세요.',
             timestamp: new Date().toISOString()
           }
         ]);
         setIsSearching(false);
-      }, 1500);
+      }
     }
   };
 
-  const handleQuickAction = (featureId: string) => {
+  const handleQuickAction = async (featureId: string) => {
     const exampleQuery = featureId === 'price'
       ? '에어팟 프로 2세대 최저가 찾아줘'
-      : '20만원대 가성비 노트북 추천해줘';
+      : '20만원대 노트북 추천해줘';
 
-    setSearchQuery(exampleQuery);
+    setSearchQuery("");
     setSearchResults([]); // Clear previous results
     setShowResults(true);
     setIsSearching(true);
 
-    setTimeout(() => {
-      setSearchResults([
-        {
-          type: 'user-query',
-          content: exampleQuery,
-          timestamp: new Date().toISOString()
-        },
-        {
-          type: 'ai-response',
-          content: `${exampleQuery}에 대해 분석하고 있습니다. 최적의 제품을 찾아드리겠습니다.`,
-          timestamp: new Date().toISOString()
-        }
-      ]);
-      setSearchQuery(""); // Clear input
+    // Add user query
+    setSearchResults([
+      {
+        type: 'user-query',
+        content: exampleQuery,
+        timestamp: new Date().toISOString()
+      }
+    ]);
+
+    setIsTyping(true);
+
+    try {
+      await simulateNetworkDelay();
+
+      const aiResponses = generateMockAIResponse(exampleQuery);
+      setIsTyping(false);
+
+      const newResults = aiResponses.map(response => ({
+        type: response.type === 'text' ? 'ai-response' : 'products',
+        content: response.content,
+        products: response.products,
+        timestamp: new Date().toISOString()
+      }));
+
+      setSearchResults(prev => [...prev, ...newResults]);
       setIsSearching(false);
-    }, 1500);
+    } catch (error) {
+      console.error('Quick action error:', error);
+      setIsTyping(false);
+      setIsSearching(false);
+    }
   };
 
   const handleExamplePrompt = (prompt: string) => {
@@ -354,11 +387,68 @@ export default function Home() {
                         </div>
                       )}
 
-                      {result.type === 'products' && result.items?.length > 0 && (
-                        <div className="space-y-4 pl-11">
-                          <h3 className="text-base font-semibold">추천 제품</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Product cards will be mapped here */}
+                      {result.type === 'products' && result.products?.length > 0 && (
+                        <div className="space-y-4 pl-11 max-w-[85%] md:max-w-full">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {result.products.map((product: any) => (
+                              <div
+                                key={product.id}
+                                className="group p-4 rounded-xl border border-border bg-card hover:shadow-lg transition-all duration-200 hover:-translate-y-1"
+                              >
+                                <div className="aspect-square relative mb-3 rounded-lg overflow-hidden bg-muted">
+                                  <img
+                                    src={product.image}
+                                    alt={product.name}
+                                    className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                  {product.originalPrice && (
+                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-destructive text-destructive-foreground text-xs font-bold">
+                                      {Math.round((1 - product.price / product.originalPrice) * 100)}% OFF
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="space-y-2">
+                                  <h4 className="font-medium text-sm line-clamp-2 min-h-[2.5rem]">
+                                    {product.name}
+                                  </h4>
+
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-lg font-bold text-primary">
+                                      {product.price.toLocaleString()}원
+                                    </span>
+                                    {product.originalPrice && (
+                                      <span className="text-xs text-muted-foreground line-through">
+                                        {product.originalPrice.toLocaleString()}원
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span className="font-medium">{product.seller}</span>
+                                    {product.rating && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="flex items-center gap-1">
+                                          ⭐ {product.rating}
+                                          {product.reviewCount && (
+                                            <span className="text-muted-foreground/70">
+                                              ({product.reviewCount.toLocaleString()})
+                                            </span>
+                                          )}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {product.shippingInfo && (
+                                    <div className="text-xs text-green-600 font-medium">
+                                      {product.shippingInfo}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
