@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Clock,
   Users,
+  User,
 } from "lucide-react";
 
 // AI 어시스턴트 핵심 기능
