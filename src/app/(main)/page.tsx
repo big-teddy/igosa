@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useModeStore } from "@/lib/stores/mode-store";
+import { toast } from "sonner";
 
 // 실시간 트렌딩 검색어
 const TRENDING_SEARCHES = [
@@ -232,14 +233,35 @@ export default function Home() {
 
         if (error.name === 'AbortError') {
           // Request was cancelled
+          toast.info('검색이 취소되었습니다.');
           return;
         }
+
+        // Determine error type and show appropriate message
+        let errorMessage = '죄송합니다. 검색 중 오류가 발생했습니다.';
+        let toastMessage = '검색 중 오류가 발생했습니다.';
+
+        if (error.message.includes('API error: 429')) {
+          errorMessage = '잠시 후 다시 시도해주세요. (요청이 너무 많습니다)';
+          toastMessage = '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
+        } else if (error.message.includes('API error: 401')) {
+          errorMessage = 'API 인증에 실패했습니다. 관리자에게 문의해주세요.';
+          toastMessage = 'API 인증 실패';
+        } else if (error.message.includes('API error: 500') || error.message.includes('API error: 503')) {
+          errorMessage = '서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.';
+          toastMessage = '서버 오류가 발생했습니다.';
+        } else if (error.message.includes('Failed to fetch') || error.message === 'Network request failed') {
+          errorMessage = '네트워크 연결을 확인해주세요.';
+          toastMessage = '네트워크 연결 오류';
+        }
+
+        toast.error(toastMessage);
 
         setSearchResults(prev => [
           ...prev,
           {
             type: 'ai-response',
-            content: '죄송합니다. 검색 중 오류가 발생했습니다. 다시 시도해주세요.',
+            content: errorMessage + '\n\n다시 시도하시거나 다른 질문을 해주세요.',
             timestamp: new Date().toISOString()
           }
         ]);

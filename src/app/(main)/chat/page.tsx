@@ -26,6 +26,7 @@ import { useEffect, useRef, useState } from "react";
 import { ProductCard } from "@/components/products/product-card";
 import { searchProducts } from "@/lib/data/mock-products";
 import { useModeStore } from "@/lib/stores/mode-store";
+import { toast } from "sonner";
 
 // Helper function to extract product names from text
 function extractProductNames(text: string): string[] {
@@ -71,7 +72,7 @@ const SUGGESTED_PROMPTS = [
 
 export default function ChatPage() {
   const { searchMode, setSearchMode } = useModeStore();
-  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, reload } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, reload, error } = useChat({
     api: "/api/chat",
     body: {
       mode: searchMode
@@ -83,6 +84,22 @@ export default function ChatPage() {
         content: "안녕하세요! 이거사 AI 쇼핑 어시스턴트입니다. 어떤 제품을 찾고 계신가요?",
       },
     ],
+    onError: (error) => {
+      console.error('Chat error:', error);
+
+      // Show user-friendly error toast
+      if (error.message.includes('429')) {
+        toast.error('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
+      } else if (error.message.includes('401')) {
+        toast.error('API 인증에 실패했습니다.');
+      } else if (error.message.includes('500') || error.message.includes('503')) {
+        toast.error('서버에 일시적인 문제가 발생했습니다.');
+      } else if (error.message.includes('Failed to fetch')) {
+        toast.error('네트워크 연결을 확인해주세요.');
+      } else {
+        toast.error('메시지 전송 중 오류가 발생했습니다.');
+      }
+    },
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -142,7 +159,7 @@ export default function ChatPage() {
 
   const handleVoiceInput = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('음성 인식이 지원되지 않는 브라우저입니다.');
+      toast.error('음성 인식이 지원되지 않는 브라우저입니다.');
       return;
     }
 
@@ -176,7 +193,13 @@ export default function ChatPage() {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
         if (event.error === 'not-allowed') {
-          alert('마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
+          toast.error('마이크 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
+        } else if (event.error === 'no-speech') {
+          toast.info('음성이 감지되지 않았습니다. 다시 시도해주세요.');
+        } else if (event.error === 'network') {
+          toast.error('네트워크 오류로 음성 인식에 실패했습니다.');
+        } else {
+          toast.error('음성 인식 중 오류가 발생했습니다.');
         }
       };
 
@@ -188,7 +211,7 @@ export default function ChatPage() {
     } catch (error) {
       console.error('Failed to initialize speech recognition:', error);
       setIsListening(false);
-      alert('음성 인식을 시작할 수 없습니다.');
+      toast.error('음성 인식을 시작할 수 없습니다. 다시 시도해주세요.');
     }
   };
 
@@ -196,10 +219,11 @@ export default function ChatPage() {
     try {
       await navigator.clipboard.writeText(content);
       setCopiedId(messageId);
+      toast.success('클립보드에 복사되었습니다.');
       setTimeout(() => setCopiedId(null), 2000);
     } catch (error) {
       console.error('Failed to copy message:', error);
-      alert('복사에 실패했습니다. 다시 시도해주세요.');
+      toast.error('복사에 실패했습니다. 다시 시도해주세요.');
     }
   };
 

@@ -180,13 +180,41 @@ ${modeInstructions}
     return new StreamingTextResponse(stream);
   } catch (error) {
     console.error('Chat API Error:', error);
+
+    // Determine appropriate error status and message
+    let status = 500;
+    let errorMessage = 'Failed to process chat request';
+    let details = error instanceof Error ? error.message : 'Unknown error';
+
+    if (error instanceof Error) {
+      // Handle specific OpenAI API errors
+      if (error.message.includes('API key')) {
+        status = 401;
+        errorMessage = 'Authentication failed';
+        details = 'Invalid or missing API key';
+      } else if (error.message.includes('rate limit') || error.message.includes('429')) {
+        status = 429;
+        errorMessage = 'Rate limit exceeded';
+        details = 'Too many requests. Please try again later.';
+      } else if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+        status = 504;
+        errorMessage = 'Request timeout';
+        details = 'The request took too long to complete';
+      } else if (error.message.includes('network') || error.message.includes('ECONNREFUSED')) {
+        status = 503;
+        errorMessage = 'Service unavailable';
+        details = 'Unable to connect to AI service';
+      }
+    }
+
     return new Response(
       JSON.stringify({
-        error: 'Failed to process chat request',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage,
+        details: details,
+        timestamp: new Date().toISOString()
       }),
       {
-        status: 500,
+        status: status,
         headers: { 'Content-Type': 'application/json' }
       }
     );
