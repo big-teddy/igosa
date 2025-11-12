@@ -1,4 +1,8 @@
 "use client";
+/**
+ * 이거사 홈페이지 - AI 쇼핑 에이전트
+ * Updated: 2025-11-12 v3 - Pill Toggle UI 적용
+ */
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
