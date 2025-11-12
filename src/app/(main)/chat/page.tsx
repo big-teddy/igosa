@@ -27,6 +27,10 @@ import { ProductCard } from "@/components/products/product-card";
 import { searchProducts } from "@/lib/data/mock-products";
 import { useModeStore } from "@/lib/stores/mode-store";
 import { toast } from "sonner";
+import { ProductRecommendationCard } from "@/components/rich-cards/ProductRecommendationCard";
+import { buildProductCards } from "@/lib/utils/card-builder";
+import { getFriendPurchases, getSocialReviewsByProduct } from "@/lib/data/mock-social";
+import { getInfluencerReviewsByProduct, getInfluencerReviewSummary } from "@/lib/data/mock-influencer";
 
 // Helper function to extract product names from text
 function extractProductNames(text: string): string[] {
@@ -86,6 +90,7 @@ const SUGGESTED_PROMPTS = [
 
 export default function ChatPage() {
   const { searchMode, setSearchMode } = useModeStore();
+  const userId = 'user-1'; // Mock user ID
   const { messages, input, handleInputChange, handleSubmit, isLoading, stop, reload, error } = useChat({
     api: "/api/chat",
     body: {
@@ -395,22 +400,34 @@ export default function ChatPage() {
                       </div>
                     )}
 
-                    {/* Inline Product Cards */}
+                    {/* Rich Product Cards - 다층 신뢰 소스 기반 추천 */}
                     {message.role === "assistant" && shouldShowProducts && (
-                      <div className="mt-4 pt-4 border-t border-border/50">
+                      <div className="mt-6">
                         <div className="flex items-center gap-2 mb-4">
                           <Sparkles className="h-4 w-4 text-primary" />
                           <span className="text-sm font-semibold">추천 제품</span>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {productKeywords.slice(0, 2).map((keyword, keywordIdx) => {
+                        <div className="space-y-4">
+                          {productKeywords.slice(0, 1).map((keyword, keywordIdx) => {
                             const products = searchProducts(keyword);
-                            const product = products[0];
-                            if (!product) return null;
+                            if (!products || products.length === 0) return null;
+
+                            // Rich Card 생성
+                            const richCards = buildProductCards(
+                              products.slice(0, 2), // 최대 2개 제품
+                              userId,
+                              searchMode,
+                              getFriendPurchases,
+                              getSocialReviewsByProduct,
+                              getInfluencerReviewsByProduct,
+                              getInfluencerReviewSummary
+                            );
 
                             return (
-                              <div key={`${message.id}-product-${keywordIdx}`}>
-                                <ProductCard product={product} />
+                              <div key={`${message.id}-product-${keywordIdx}`} className="space-y-4">
+                                {richCards.map((card, cardIdx) => (
+                                  <ProductRecommendationCard key={card.id} card={card} index={cardIdx} />
+                                ))}
                               </div>
                             );
                           })}

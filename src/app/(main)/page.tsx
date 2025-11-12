@@ -22,6 +22,12 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useModeStore } from "@/lib/stores/mode-store";
 import { toast } from "sonner";
+import { ProductRecommendationCard } from "@/components/rich-cards/ProductRecommendationCard";
+import { ProductRecommendationCard as ProductCardType } from "@/types/rich-card";
+import { buildProductCards } from "@/lib/utils/card-builder";
+import { searchProducts } from "@/lib/data/mock-products";
+import { getFriendPurchases, getSocialReviewsByProduct } from "@/lib/data/mock-social";
+import { getInfluencerReviewsByProduct, getInfluencerReviewSummary } from "@/lib/data/mock-influencer";
 
 // 실시간 트렌딩 검색어
 const TRENDING_SEARCHES = [
@@ -69,9 +75,13 @@ export default function Home() {
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [displayPlaceholder, setDisplayPlaceholder] = useState("");
   const [conversationMessages, setConversationMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  const [richCards, setRichCards] = useState<ProductCardType[]>([]);
   const resultsEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Mock user ID (실제로는 로그인 시스템에서 가져옴)
+  const userId = 'user-1';
 
   // Placeholder 타이핑 애니메이션 - 모드에 따라 변경
   useEffect(() => {
@@ -226,6 +236,84 @@ export default function Home() {
           { role: 'assistant', content: aiResponse }
         ]);
 
+        // 제품 검색 키워드 감지 및 Rich Card 생성
+        const productKeywords = [
+          '러닝화', '운동화', '신발',
+          '노트북', '맥북',
+          '이어폰', '에어팟', '버즈',
+          '스마트워치', '애플워치', '갤럭시워치',
+          '패딩', '다운재킷', '겨울옷',
+          '공기청정기', '청정기',
+          '스피커', '블루투스',
+          '키보드', '기계식',
+          '마우스',
+          '백팩', '가방',
+          '텀블러', '물통',
+          '면도기', '전기면도기',
+          '청소기', '로봇청소기'
+        ];
+
+        const hasProductQuery = productKeywords.some(keyword => query.includes(keyword));
+
+        if (hasProductQuery) {
+          // 검색어 추출
+          let searchQuery = '';
+          if (query.includes('러닝화') || query.includes('운동화') || query.includes('신발')) {
+            searchQuery = '러닝화';
+          } else if (query.includes('노트북') || query.includes('맥북')) {
+            searchQuery = '노트북';
+          } else if (query.includes('이어폰') || query.includes('에어팟') || query.includes('버즈')) {
+            searchQuery = '이어폰';
+          } else if (query.includes('스마트워치') || query.includes('애플워치') || query.includes('갤럭시워치')) {
+            searchQuery = '스마트워치';
+          } else if (query.includes('패딩') || query.includes('다운재킷') || query.includes('겨울옷')) {
+            searchQuery = '패딩';
+          } else if (query.includes('공기청정기') || query.includes('청정기')) {
+            searchQuery = '공기청정기';
+          } else if (query.includes('스피커') || query.includes('블루투스')) {
+            searchQuery = '스피커';
+          } else if (query.includes('키보드') || query.includes('기계식')) {
+            searchQuery = '키보드';
+          } else if (query.includes('마우스')) {
+            searchQuery = '마우스';
+          } else if (query.includes('백팩') || query.includes('가방')) {
+            searchQuery = '가방';
+          } else if (query.includes('텀블러') || query.includes('물통')) {
+            searchQuery = '텀블러';
+          } else if (query.includes('면도기') || query.includes('전기면도기')) {
+            searchQuery = '면도기';
+          } else if (query.includes('청소기') || query.includes('로봇청소기')) {
+            searchQuery = '청소기';
+          }
+
+          if (searchQuery) {
+            // 제품 검색 및 Rich Card 생성
+            const products = searchProducts(searchQuery);
+            if (products.length > 0) {
+              const cards = buildProductCards(
+                products.slice(0, 3), // 최대 3개 제품
+                userId,
+                searchMode,
+                getFriendPurchases,
+                getSocialReviewsByProduct,
+                getInfluencerReviewsByProduct,
+                getInfluencerReviewSummary
+              );
+
+              // Rich Card 데이터 추가
+              setRichCards(cards);
+              setSearchResults(prev => [
+                ...prev,
+                {
+                  type: 'rich-cards',
+                  cards: cards,
+                  timestamp: new Date().toISOString()
+                }
+              ]);
+            }
+          }
+        }
+
         setIsSearching(false);
       } catch (error: any) {
         console.error('Search error:', error);
@@ -278,6 +366,7 @@ export default function Home() {
     setSearchQuery("");
     setSearchResults([]); // Clear previous results
     setConversationMessages([]); // Clear conversation history
+    setRichCards([]); // Clear rich cards
 
     // Trigger search with example query
     handleSearch({ preventDefault: () => {} } as React.FormEvent, exampleQuery);
@@ -293,6 +382,7 @@ export default function Home() {
     setSearchQuery(query);
     setSearchResults([]); // Clear previous results
     setConversationMessages([]); // Clear conversation history
+    setRichCards([]); // Clear rich cards
     handleSearch({ preventDefault: () => {} } as React.FormEvent, query);
   };
 
@@ -758,9 +848,18 @@ export default function Home() {
                             <Sparkles className="h-5 w-5 text-white" />
                           </div>
                           <div className="bg-muted rounded-2xl rounded-tl-sm px-6 py-4 shadow-sm">
-                            <p className="text-base leading-relaxed">{result.content}</p>
+                            <p className="text-base leading-relaxed whitespace-pre-wrap">{result.content}</p>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  ) : result.type === 'rich-cards' ? (
+                    // Rich Product Cards - 새로운 구조화된 카드
+                    <div className="w-full">
+                      <div className="space-y-4">
+                        {result.cards?.map((card: ProductCardType, cardIdx: number) => (
+                          <ProductRecommendationCard key={card.id} card={card} index={cardIdx} />
+                        ))}
                       </div>
                     </div>
                   ) : (
