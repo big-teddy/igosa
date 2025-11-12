@@ -19,11 +19,13 @@ import {
   MessageCircle,
   Bookmark,
   BookmarkCheck,
-  Settings2
+  Settings2,
+  DollarSign
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ProductCard } from "@/components/products/product-card";
 import { searchProducts } from "@/lib/data/mock-products";
+import { useModeStore } from "@/lib/stores/mode-store";
 
 // Helper function to extract product names from text
 function extractProductNames(text: string): string[] {
@@ -68,8 +70,12 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export default function ChatPage() {
+  const { searchMode, setSearchMode } = useModeStore();
   const { messages, input, handleInputChange, handleSubmit, isLoading, stop, reload } = useChat({
     api: "/api/chat",
+    body: {
+      mode: searchMode
+    },
     initialMessages: [
       {
         id: "welcome",
@@ -199,6 +205,49 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] max-w-5xl mx-auto">
+      {/* Mode Selector Header */}
+      <div className="border-b bg-background/95 backdrop-blur">
+        <div className="max-w-3xl mx-auto px-4 md:px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-sm">이거사 AI</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground hidden sm:inline">모드:</span>
+              <div className="flex items-center bg-muted rounded-full p-1">
+                <Button
+                  variant={searchMode === 'price' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSearchMode('price')}
+                  className={`h-7 px-3 rounded-full text-xs transition-all ${
+                    searchMode === 'price'
+                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'hover:bg-transparent'
+                  }`}
+                >
+                  <DollarSign className="h-3.5 w-3.5 mr-1" />
+                  가격 비교
+                </Button>
+                <Button
+                  variant={searchMode === 'recommend' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSearchMode('recommend')}
+                  className={`h-7 px-3 rounded-full text-xs transition-all ${
+                    searchMode === 'recommend'
+                      ? 'bg-purple-500 text-white hover:bg-purple-600'
+                      : 'hover:bg-transparent'
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  추천템
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Messages Area - ChatGPT/Claude style full-width messages */}
       <div className="flex-1 overflow-y-auto px-4 md:px-6">
         <div className="max-w-3xl mx-auto py-8 space-y-6">

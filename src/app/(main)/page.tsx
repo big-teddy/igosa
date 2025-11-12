@@ -19,8 +19,8 @@ import {
   Zap,
   CheckCircle2,
 } from "lucide-react";
-import { generateMockAIResponse, simulateNetworkDelay } from "@/lib/mock-ai-responses";
 import { motion, AnimatePresence } from "framer-motion";
+import { useModeStore } from "@/lib/stores/mode-store";
 
 // 실시간 트렌딩 검색어
 const TRENDING_SEARCHES = [
@@ -59,16 +59,18 @@ const MODE_PLACEHOLDERS = {
 
 export default function Home() {
   const router = useRouter();
+  const { searchMode, setSearchMode } = useModeStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [searchMode, setSearchMode] = useState<"price" | "recommend">("price");
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [displayPlaceholder, setDisplayPlaceholder] = useState("");
+  const [conversationMessages, setConversationMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const resultsEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Placeholder 타이핑 애니메이션 - 모드에 따라 변경
   useEffect(() => {
@@ -118,45 +120,121 @@ export default function Home() {
       setShowResults(true);
 
       // Add user message immediately
-      setSearchResults(prev => [
-        ...prev,
-        {
-          type: 'user-query',
-          content: query,
-          timestamp: new Date().toISOString()
-        }
-      ]);
+      const userMessage = {
+        type: 'user-query',
+        content: query,
+        timestamp: new Date().toISOString()
+      };
+      setSearchResults(prev => [...prev, userMessage]);
       setSearchQuery(""); // Clear input immediately
+
+      // Update conversation history
+      const newMessages = [
+        ...conversationMessages,
+        { role: 'user' as const, content: query }
+      ];
+      setConversationMessages(newMessages);
 
       // Simulate typing indicator
       setIsTyping(true);
 
+      // Create abort controller for cancellation
+      abortControllerRef.current = new AbortController();
+
       try {
-        // Mock AI API 호출 (실제 API 연동 전)
-        // Add mode context to the query for better results
-        const contextualQuery = searchMode === 'price'
-          ? `[가격비교 모드] ${query}`
-          : `[추천템 모드] ${query}`;
+        // Call actual chat API with mode
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: newMessages,
+            mode: searchMode
+          }),
+          signal: abortControllerRef.current.signal
+        });
 
-        await simulateNetworkDelay();
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
 
-        const aiResponses = generateMockAIResponse(query);
+        if (!response.body) {
+          throw new Error('No response body');
+        }
+
+        // Handle streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let aiResponse = '';
+        let currentResult: any = null;
 
         setIsTyping(false);
 
-        // Add AI responses
-        const newResults = aiResponses.map(response => ({
-          type: response.type === 'text' ? 'ai-response' : 'products',
-          content: response.content,
-          products: response.products,
-          timestamp: new Date().toISOString()
-        }));
+        // Add initial AI response placeholder
+        setSearchResults(prev => [
+          ...prev,
+          {
+            type: 'ai-response',
+            content: '',
+            timestamp: new Date().toISOString()
+          }
+        ]);
 
-        setSearchResults(prev => [...prev, ...newResults]);
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content || '';
+                if (content) {
+                  aiResponse += content;
+
+                  // Update the last message with streaming content
+                  setSearchResults(prev => {
+                    const newResults = [...prev];
+                    const lastIdx = newResults.length - 1;
+                    if (newResults[lastIdx] && newResults[lastIdx].type === 'ai-response') {
+                      newResults[lastIdx] = {
+                        ...newResults[lastIdx],
+                        content: aiResponse
+                      };
+                    }
+                    return newResults;
+                  });
+                }
+              } catch (e) {
+                // Ignore JSON parse errors for incomplete chunks
+              }
+            }
+          }
+        }
+
+        // Update conversation history with AI response
+        setConversationMessages(prev => [
+          ...prev,
+          { role: 'assistant', content: aiResponse }
+        ]);
+
         setIsSearching(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Search error:', error);
         setIsTyping(false);
+
+        if (error.name === 'AbortError') {
+          // Request was cancelled
+          return;
+        }
+
         setSearchResults(prev => [
           ...prev,
           {
@@ -177,54 +255,22 @@ export default function Home() {
 
     setSearchQuery("");
     setSearchResults([]); // Clear previous results
-    setShowResults(true);
-    setIsSearching(true);
+    setConversationMessages([]); // Clear conversation history
 
-    // Add user query
-    setSearchResults([
-      {
-        type: 'user-query',
-        content: exampleQuery,
-        timestamp: new Date().toISOString()
-      }
-    ]);
-
-    // Simulate typing indicator
-    setIsTyping(true);
-
-    try {
-      await simulateNetworkDelay();
-
-      const aiResponses = generateMockAIResponse(exampleQuery);
-
-      setIsTyping(false);
-
-      // Add AI responses
-      const newResults = aiResponses.map(response => ({
-        type: response.type === 'text' ? 'ai-response' : 'products',
-        content: response.content,
-        products: response.products,
-        timestamp: new Date().toISOString()
-      }));
-
-      setSearchResults(newResults);
-      setIsSearching(false);
-    } catch (error) {
-      console.error('Quick action error:', error);
-      setIsTyping(false);
-      setIsSearching(false);
-    }
+    // Trigger search with example query
+    handleSearch({ preventDefault: () => {} } as React.FormEvent, exampleQuery);
   };
 
   const handleExamplePrompt = (prompt: string) => {
     setSearchQuery(prompt);
-    setSearchResults([]); // Clear previous results
+    // Don't clear results - continue conversation
     handleSearch({ preventDefault: () => {} } as React.FormEvent, prompt);
   };
 
   const handleTrendingSearch = (query: string) => {
     setSearchQuery(query);
     setSearchResults([]); // Clear previous results
+    setConversationMessages([]); // Clear conversation history
     handleSearch({ preventDefault: () => {} } as React.FormEvent, query);
   };
 
