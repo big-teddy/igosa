@@ -1,11 +1,12 @@
 /**
  * AI 응답과 제품 데이터를 Rich Card로 변환하는 유틸리티
+ * Updated: 2025-11-12 - 모든 타입 오류 수정 완료
  */
 
-import { ProductRecommendationCard, TrustScore, ReasoningStep, ProductInfo } from '@/types/rich-card';
+import { ProductRecommendationCard, TrustScore, ReasoningStep, ProductInfo, InfluencerSummary } from '@/types/rich-card';
 import { Product } from '@/lib/data/mock-products';
-import { FriendPurchase, SocialReview } from '@/lib/data/mock-social';
-import { InfluencerReview, InfluencerReviewSummary } from '@/lib/data/mock-influencer';
+import { UserProfile, SocialReview } from '@/lib/data/mock-social';
+import { InfluencerReview } from '@/lib/data/mock-influencer';
 
 /**
  * 신뢰 점수 계산
@@ -60,9 +61,9 @@ export function calculateTrustScore(
  */
 export function buildReasoningChain(
   friendReviews: SocialReview[],
-  friendPurchases: FriendPurchase[],
+  friendPurchases: UserProfile[],
   influencerReviews: InfluencerReview[],
-  influencerSummary: InfluencerReviewSummary | null,
+  influencerSummary: InfluencerSummary | null,
   averageRating: number,
   mode: 'price' | 'recommend'
 ): ReasoningStep[] {
@@ -152,7 +153,7 @@ export function productToProductInfo(product: Product): ProductInfo {
     id: product.id,
     name: product.name,
     brand: product.brand,
-    image: product.image,
+    image: product.imageUrl,
     description: product.description,
     category: product.category,
     basePrice: product.price,
@@ -180,10 +181,10 @@ export function productToProductInfo(product: Product): ProductInfo {
  */
 export function buildProductRecommendationCard(
   product: Product,
-  friendPurchases: FriendPurchase[],
+  friendPurchases: UserProfile[],
   friendReviews: SocialReview[],
   influencerReviews: InfluencerReview[],
-  influencerSummary: InfluencerReviewSummary | null,
+  influencerSummary: InfluencerSummary | null,
   mode: 'price' | 'recommend',
   aiRecommendationText?: string
 ): ProductRecommendationCard {
@@ -240,8 +241,7 @@ export function buildProductRecommendationCard(
       userAvatar: r.userAvatar,
       rating: r.rating,
       content: r.content,
-      purchaseDate: r.purchaseDate,
-      relationship: r.relationship as 'friend' | 'family' | 'colleague' | undefined,
+      purchaseDate: r.timestamp,
     })),
     influencerReviews: influencerReviews.map((r) => ({
       influencerId: r.influencerId,
@@ -249,11 +249,11 @@ export function buildProductRecommendationCard(
       influencerAvatar: r.influencerAvatar,
       platform: r.platform as 'youtube' | 'instagram' | 'blog' | 'tiktok',
       followers: r.influencerFollowers,
-      isVerified: r.isVerified,
+      isVerified: false, // mock data doesn't have this field
       rating: r.rating,
       summary: r.summary,
-      videoUrl: r.videoUrl,
-      thumbnailUrl: r.thumbnailUrl,
+      videoUrl: r.contentUrl,
+      thumbnailUrl: r.thumbnail,
     })),
     influencerSummary: influencerSummary
       ? {
@@ -277,10 +277,10 @@ export function buildProductCards(
   products: Product[],
   userId: string,
   mode: 'price' | 'recommend',
-  getFriendPurchases: (userId: string, productId: string) => FriendPurchase[],
+  getFriendPurchases: (userId: string, productId: string) => UserProfile[],
   getSocialReviews: (productId: string) => SocialReview[],
   getInfluencerReviews: (productId: string) => InfluencerReview[],
-  getInfluencerSummary: (productId: string) => InfluencerReviewSummary | null
+  getInfluencerSummary: (productId: string) => InfluencerSummary | null
 ): ProductRecommendationCard[] {
   return products.map((product) => {
     const friendPurchases = getFriendPurchases(userId, product.id);

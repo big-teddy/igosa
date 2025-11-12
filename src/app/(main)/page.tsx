@@ -447,6 +447,84 @@ export default function Home() {
             transition={{ duration: 0.5, delay: showResults ? 0 : 0.5 }}
             className={`space-y-6 ${!showResults ? '' : 'pt-8'}`}
           >
+            {/* Mode Selector - AI Service Style - 2025 Modern Design */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, delay: showResults ? 0 : 0.6 }}
+              className="flex justify-center"
+            >
+              <div className="inline-flex items-center bg-muted/80 backdrop-blur-sm rounded-full p-1.5 shadow-lg border border-border/50">
+                <motion.button
+                  onClick={() => {
+                    setSearchMode('price');
+                    setPlaceholderIndex(0);
+                  }}
+                  className={`relative px-6 py-3 rounded-full text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
+                    searchMode === 'price'
+                      ? 'text-white'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {searchMode === 'price' && (
+                    <motion.div
+                      layoutId="mode-indicator"
+                      className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full shadow-md"
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    />
+                  )}
+                  <DollarSign className={`h-4 w-4 relative z-10 ${searchMode === 'price' ? 'text-white' : ''}`} />
+                  <span className="relative z-10">가격 비교</span>
+                </motion.button>
+
+                <motion.button
+                  onClick={() => {
+                    setSearchMode('recommend');
+                    setPlaceholderIndex(0);
+                  }}
+                  className={`relative px-6 py-3 rounded-full text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
+                    searchMode === 'recommend'
+                      ? 'text-white'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {searchMode === 'recommend' && (
+                    <motion.div
+                      layoutId="mode-indicator"
+                      className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-md"
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    />
+                  )}
+                  <Sparkles className={`h-4 w-4 relative z-10 ${searchMode === 'recommend' ? 'text-white' : ''}`} />
+                  <span className="relative z-10">AI 추천</span>
+                </motion.button>
+              </div>
+            </motion.div>
+
+            {/* Mode Description - Subtle */}
+            {!showResults && (
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={searchMode}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.2 }}
+                  className={`text-center text-sm transition-colors duration-300 ${
+                    searchMode === 'price' ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'
+                  }`}
+                >
+                  {searchMode === 'price'
+                    ? '💰 여러 쇼핑몰의 최저가를 실시간으로 비교해드립니다'
+                    : '✨ 친구와 전문가 리뷰 기반 맞춤 추천을 제공합니다'}
+                </motion.p>
+              </AnimatePresence>
+            )}
+
             <form onSubmit={handleSearch} className="relative">
               <div className="relative group">
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground group-focus-within:text-primary transition-all duration-300 group-focus-within:scale-110"
@@ -515,256 +593,6 @@ export default function Home() {
               </AnimatePresence>
             )}
           </motion.div>
-
-          {/* Mode Selection Cards - Only show when no conversation */}
-          {!showResults && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="space-y-6"
-            >
-              <div className="text-center">
-                <h2 className="text-2xl font-bold mb-2">어떻게 도와드릴까요?</h2>
-                <p className="text-muted-foreground">원하는 방식을 선택해주세요</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto relative">
-                {/* Shared animated background */}
-                <motion.div
-                  layoutId="mode-selector-bg"
-                  className="absolute inset-0 pointer-events-none"
-                  initial={false}
-                />
-
-                {/* Price Comparison Card */}
-                <motion.button
-                  layout
-                  whileHover={{ scale: 1.03, y: -8, rotateX: 5 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setSearchMode('price');
-                    setPlaceholderIndex(0);
-                  }}
-                  style={{ transformStyle: 'preserve-3d' }}
-                  className={`relative p-8 rounded-3xl transition-all duration-500 text-left overflow-hidden group ${
-                    searchMode === 'price'
-                      ? 'border-2 border-transparent shadow-2xl'
-                      : 'border-2 border-border/50 bg-card/50 backdrop-blur-sm hover:border-blue-300/50 hover:shadow-lg'
-                  }`}
-                >
-                  {/* Animated gradient border for selected card */}
-                  {searchMode === 'price' && (
-                    <motion.div
-                      className="absolute inset-0 rounded-3xl bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500 opacity-100"
-                      animate={{
-                        backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-                      }}
-                      transition={{
-                        duration: 3,
-                        repeat: Infinity,
-                        ease: 'linear',
-                      }}
-                      style={{
-                        backgroundSize: '200% 100%',
-                      }}
-                    />
-                  )}
-
-                  {/* Glassmorphism inner container */}
-                  <div className={`relative z-10 rounded-3xl transition-all duration-500 ${
-                    searchMode === 'price'
-                      ? 'bg-gradient-to-br from-blue-50/95 via-cyan-50/95 to-blue-50/95 dark:from-blue-950/95 dark:via-cyan-950/95 dark:to-blue-950/95 backdrop-blur-xl m-[2px]'
-                      : 'bg-card/80 backdrop-blur-sm'
-                  }`}>
-                    {/* Glow effect for selected card */}
-                    {searchMode === 'price' && (
-                      <>
-                        <motion.div
-                          className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 rounded-3xl blur-xl"
-                          animate={{
-                            opacity: [0.3, 0.6, 0.3],
-                            scale: [1, 1.05, 1],
-                          }}
-                          transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-3xl" />
-                      </>
-                    )}
-
-                  {/* Hover gradient effect */}
-                  <div className={`absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-3xl`} />
-
-                    <div className="relative space-y-4 p-8">
-                      <div className="flex items-start justify-between">
-                        <motion.div
-                          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-3xl shadow-lg"
-                          whileHover={{ scale: 1.1, rotate: 5 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                        >
-                          💰
-                        </motion.div>
-                        {searchMode === 'price' && (
-                          <motion.div
-                            initial={{ scale: 0, rotate: -180 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            exit={{ scale: 0, rotate: 180 }}
-                            transition={{ type: "spring", stiffness: 500, damping: 20 }}
-                          >
-                            <CheckCircle2 className="h-7 w-7 text-blue-500" />
-                          </motion.div>
-                        )}
-                      </div>
-
-                      <div>
-                        <h3 className="text-2xl font-bold mb-2 group-hover:text-blue-600 transition-colors">
-                          가격 비교
-                        </h3>
-                        <p className="text-base text-muted-foreground font-medium mb-4">
-                          여러 쇼핑몰의 최저가를 한눈에 비교
-                        </p>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <DollarSign className="h-4 w-4 text-blue-500" />
-                            <span>실시간 최저가 검색</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Zap className="h-4 w-4 text-blue-500" />
-                            <span>빠른 가격 비교</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="pt-4 border-t border-border/50">
-                        <p className="text-xs text-muted-foreground flex items-center gap-2">
-                          <span className="font-semibold">예시:</span>
-                          "에어팟 프로 2세대 최저가 찾아줘"
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </motion.button>
-
-                {/* Recommendation Card */}
-                <motion.button
-                  layout
-                  whileHover={{ scale: 1.03, y: -8, rotateX: 5 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setSearchMode('recommend');
-                    setPlaceholderIndex(0);
-                  }}
-                  style={{ transformStyle: 'preserve-3d' }}
-                  className={`relative p-8 rounded-3xl transition-all duration-500 text-left overflow-hidden group ${
-                    searchMode === 'recommend'
-                      ? 'border-2 border-transparent shadow-2xl'
-                      : 'border-2 border-border/50 bg-card/50 backdrop-blur-sm hover:border-purple-300/50 hover:shadow-lg'
-                  }`}
-                >
-                  {/* Animated gradient border for selected card */}
-                  {searchMode === 'recommend' && (
-                    <motion.div
-                      className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 opacity-100"
-                      animate={{
-                        backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-                      }}
-                      transition={{
-                        duration: 3,
-                        repeat: Infinity,
-                        ease: 'linear',
-                      }}
-                      style={{
-                        backgroundSize: '200% 100%',
-                      }}
-                    />
-                  )}
-
-                  {/* Glassmorphism inner container */}
-                  <div className={`relative z-10 rounded-3xl transition-all duration-500 ${
-                    searchMode === 'recommend'
-                      ? 'bg-gradient-to-br from-purple-50/95 via-pink-50/95 to-purple-50/95 dark:from-purple-950/95 dark:via-pink-950/95 dark:to-purple-950/95 backdrop-blur-xl m-[2px]'
-                      : 'bg-card/80 backdrop-blur-sm'
-                  }`}>
-                    {/* Glow effect for selected card */}
-                    {searchMode === 'recommend' && (
-                      <>
-                        <motion.div
-                          className="absolute inset-0 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-3xl blur-xl"
-                          animate={{
-                            opacity: [0.3, 0.6, 0.3],
-                            scale: [1, 1.05, 1],
-                          }}
-                          transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-3xl" />
-                      </>
-                    )}
-
-                  {/* Hover gradient effect */}
-                  <div className={`absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-3xl`} />
-
-                    <div className="relative space-y-4 p-8">
-                      <div className="flex items-start justify-between">
-                        <motion.div
-                          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-3xl shadow-lg"
-                          whileHover={{ scale: 1.1, rotate: 5 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                        >
-                          ✨
-                        </motion.div>
-                        {searchMode === 'recommend' && (
-                          <motion.div
-                            initial={{ scale: 0, rotate: -180 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            exit={{ scale: 0, rotate: 180 }}
-                            transition={{ type: "spring", stiffness: 500, damping: 20 }}
-                          >
-                            <CheckCircle2 className="h-7 w-7 text-purple-500" />
-                          </motion.div>
-                        )}
-                      </div>
-
-                      <div>
-                        <h3 className="text-2xl font-bold mb-2 group-hover:text-purple-600 transition-colors">
-                          추천템
-                        </h3>
-                        <p className="text-base text-muted-foreground font-medium mb-4">
-                          AI가 분석한 맞춤 제품 추천
-                        </p>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Sparkles className="h-4 w-4 text-purple-500" />
-                            <span>AI 맞춤 추천</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Users className="h-4 w-4 text-purple-500" />
-                            <span>인기 제품 분석</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="pt-4 border-t border-border/50">
-                        <p className="text-xs text-muted-foreground flex items-center gap-2">
-                          <span className="font-semibold">예시:</span>
-                          "20만원대 가성비 노트북 추천해줘"
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
 
           {/* Trending Searches - Only show when no conversation */}
           {!showResults && (

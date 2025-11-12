@@ -253,20 +253,15 @@ export function getTopInfluencersByCategory(category: string, limit = 5): Influe
     .slice(0, limit);
 }
 
-export function getInfluencerReviewSummary(productId: string) {
+export function getInfluencerReviewSummary(productId: string): { totalReviews: number; recommendPercent: number; topPros: string[]; topCons: string[] } | null {
   const reviews = getInfluencerReviewsByProduct(productId);
-  
+
   if (reviews.length === 0) {
     return null;
   }
 
   const totalReviews = reviews.length;
-  const avgRating = reviews
-    .filter(r => r.rating)
-    .reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.filter(r => r.rating).length;
-  
   const recommendCount = reviews.filter(r => r.recommended).length;
-  const totalViews = reviews.reduce((sum, r) => sum + (r.viewCount || 0), 0);
 
   // 가장 많이 언급된 장점/단점
   const allPros = reviews.flatMap(r => r.pros);
@@ -295,12 +290,8 @@ export function getInfluencerReviewSummary(productId: string) {
 
   return {
     totalReviews,
-    avgRating: Math.round(avgRating * 10) / 10,
-    recommendCount,
     recommendPercent: Math.round((recommendCount / totalReviews) * 100),
-    totalViews,
     topPros,
     topCons,
-    reviews: reviews.slice(0, 3), // 상위 3개만
   };
 }

@@ -1,0 +1,9 @@
+Deployment Version: 2025-11-12-v2
+Commit: b464a5a
+Features:
+- ✅ AI Service Style Mode Selector (Pill Toggle)
+- ✅ All 4 Type Errors Fixed
+- ✅ TypeScript 100% Pass
+- ✅ Homepage UI Modernized
+
+Last Updated: 2025-11-12 19:30 UTC
