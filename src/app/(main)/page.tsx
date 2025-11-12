@@ -362,15 +362,29 @@ export default function Home() {
     }
   };
 
+  // 상태 초기화 함수
+  const resetConversation = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setConversationMessages([]);
+    setRichCards([]);
+    setShowResults(false);
+    setIsSearching(false);
+    setIsTyping(false);
+
+    // Abort any ongoing requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  };
+
   const handleModeBasedSearch = async () => {
     const exampleQuery = searchMode === 'price'
       ? '에어팟 프로 2세대 최저가 찾아줘'
       : '20만원대 노트북 추천해줘';
 
-    setSearchQuery("");
-    setSearchResults([]); // Clear previous results
-    setConversationMessages([]); // Clear conversation history
-    setRichCards([]); // Clear rich cards
+    resetConversation();
 
     // Trigger search with example query
     handleSearch({ preventDefault: () => {} } as React.FormEvent, exampleQuery);
@@ -383,10 +397,8 @@ export default function Home() {
   };
 
   const handleTrendingSearch = (query: string) => {
+    resetConversation();
     setSearchQuery(query);
-    setSearchResults([]); // Clear previous results
-    setConversationMessages([]); // Clear conversation history
-    setRichCards([]); // Clear rich cards
     handleSearch({ preventDefault: () => {} } as React.FormEvent, query);
   };
 
@@ -529,35 +541,57 @@ export default function Home() {
               </AnimatePresence>
             )}
 
-            <form onSubmit={handleSearch} className="relative">
-              <div className="relative group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground group-focus-within:text-primary transition-all duration-300 group-focus-within:scale-110"
-                  aria-hidden="true"
-                />
-                <Input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder={displayPlaceholder}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-16 md:h-18 pl-16 pr-32 text-base md:text-lg rounded-2xl border-2 border-border focus:border-primary shadow-lg hover:shadow-xl focus:shadow-2xl transition-all duration-300 bg-card focus:scale-[1.02] font-medium"
-                  aria-label="제품 검색"
-                  autoComplete="off"
-                  disabled={isSearching}
-                />
-                {searchQuery && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2"
+            <div className="space-y-3">
+              <form onSubmit={handleSearch} className="relative">
+                <div className="relative group">
+                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground group-focus-within:text-primary transition-all duration-300 group-focus-within:scale-110"
+                    aria-hidden="true"
+                  />
+                  <Input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder={displayPlaceholder}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-16 md:h-18 pl-16 pr-32 text-base md:text-lg rounded-2xl border-2 border-border focus:border-primary shadow-lg hover:shadow-xl focus:shadow-2xl transition-all duration-300 bg-card focus:scale-[1.02] font-medium"
+                    aria-label="제품 검색"
+                    autoComplete="off"
+                    disabled={isSearching}
+                  />
+                  {searchQuery && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2"
+                    >
+                      <kbd className="hidden sm:inline-flex h-7 px-3 items-center gap-1 rounded-lg border-2 border-primary/20 bg-primary/5 text-xs font-bold text-primary">
+                        Enter ↵
+                      </kbd>
+                    </motion.div>
+                  )}
+                </div>
+              </form>
+
+              {/* New Conversation Button - Show when conversation is active */}
+              {showResults && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex justify-center"
+                >
+                  <Button
+                    onClick={resetConversation}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 hover:bg-accent transition-all duration-200"
                   >
-                    <kbd className="hidden sm:inline-flex h-7 px-3 items-center gap-1 rounded-lg border-2 border-primary/20 bg-primary/5 text-xs font-bold text-primary">
-                      Enter ↵
-                    </kbd>
-                  </motion.div>
-                )}
-              </div>
-            </form>
+                    <Sparkles className="h-4 w-4" />
+                    새 대화 시작
+                  </Button>
+                </motion.div>
+              )}
+            </div>
 
             {/* Example Prompts - Only show when no conversation - 모드별로 변경 */}
             {!showResults && (

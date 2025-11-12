@@ -41,9 +41,12 @@ export function Header() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-6">
-            <Link
-              href="/"
-              className="flex items-center gap-2 group"
+            <button
+              onClick={() => {
+                // Force full page reload to reset all state
+                window.location.href = '/';
+              }}
+              className="flex items-center gap-2 group cursor-pointer"
               aria-label="이거사 홈페이지로 이동"
             >
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shrink-0">
@@ -52,7 +55,7 @@ export function Header() {
               <span className="font-bold text-xl group-hover:text-primary transition-colors duration-200 whitespace-nowrap">
                 이거사
               </span>
-            </Link>
+            </button>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1" role="navigation" aria-label="주요 메뉴">
