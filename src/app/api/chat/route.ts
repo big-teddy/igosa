@@ -84,20 +84,52 @@ ${modeInstructions}
 
     // 간단한 키워드 매칭으로 제품 검색 (실제로는 AI가 더 똑똑하게 처리)
     let productsContext = '';
-    const productKeywords = ['러닝화', '운동화', '신발', '노트북', '맥북', '이어폰', '에어팟', '스마트워치', '애플워치'];
+    const productKeywords = [
+      '러닝화', '운동화', '신발',
+      '노트북', '맥북',
+      '이어폰', '에어팟', '버즈',
+      '스마트워치', '애플워치', '갤럭시워치',
+      '패딩', '다운재킷', '겨울옷',
+      '공기청정기', '청정기',
+      '스피커', '블루투스',
+      '키보드', '기계식',
+      '마우스',
+      '백팩', '가방',
+      '텀블러', '물통',
+      '면도기', '전기면도기',
+      '청소기', '로봇청소기'
+    ];
     const hasProductQuery = productKeywords.some(keyword => lastUserMessage.includes(keyword));
 
     if (hasProductQuery) {
       // 검색어 추출 (간단한 구현)
       let searchQuery = '';
-      if (lastUserMessage.includes('러닝화') || lastUserMessage.includes('운동화')) {
+      if (lastUserMessage.includes('러닝화') || lastUserMessage.includes('운동화') || lastUserMessage.includes('신발')) {
         searchQuery = '러닝화';
       } else if (lastUserMessage.includes('노트북') || lastUserMessage.includes('맥북')) {
         searchQuery = '노트북';
-      } else if (lastUserMessage.includes('이어폰') || lastUserMessage.includes('에어팟')) {
+      } else if (lastUserMessage.includes('이어폰') || lastUserMessage.includes('에어팟') || lastUserMessage.includes('버즈')) {
         searchQuery = '이어폰';
-      } else if (lastUserMessage.includes('스마트워치') || lastUserMessage.includes('애플워치')) {
+      } else if (lastUserMessage.includes('스마트워치') || lastUserMessage.includes('애플워치') || lastUserMessage.includes('갤럭시워치')) {
         searchQuery = '스마트워치';
+      } else if (lastUserMessage.includes('패딩') || lastUserMessage.includes('다운재킷') || lastUserMessage.includes('겨울옷')) {
+        searchQuery = '패딩';
+      } else if (lastUserMessage.includes('공기청정기') || lastUserMessage.includes('청정기')) {
+        searchQuery = '공기청정기';
+      } else if (lastUserMessage.includes('스피커') || lastUserMessage.includes('블루투스')) {
+        searchQuery = '스피커';
+      } else if (lastUserMessage.includes('키보드') || lastUserMessage.includes('기계식')) {
+        searchQuery = '키보드';
+      } else if (lastUserMessage.includes('마우스')) {
+        searchQuery = '마우스';
+      } else if (lastUserMessage.includes('백팩') || lastUserMessage.includes('가방')) {
+        searchQuery = '가방';
+      } else if (lastUserMessage.includes('텀블러') || lastUserMessage.includes('물통')) {
+        searchQuery = '텀블러';
+      } else if (lastUserMessage.includes('면도기') || lastUserMessage.includes('전기면도기')) {
+        searchQuery = '면도기';
+      } else if (lastUserMessage.includes('청소기') || lastUserMessage.includes('로봇청소기')) {
+        searchQuery = '청소기';
       }
 
       if (searchQuery) {

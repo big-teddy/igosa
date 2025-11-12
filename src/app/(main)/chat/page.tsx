@@ -30,7 +30,21 @@ import { toast } from "sonner";
 
 // Helper function to extract product names from text
 function extractProductNames(text: string): string[] {
-  const productKeywords = ['러닝화', '운동화', '노트북', '맥북', '이어폰', '에어팟', '스마트워치', '애플워치'];
+  const productKeywords = [
+    '러닝화', '운동화', '신발',
+    '노트북', '맥북',
+    '이어폰', '에어팟', '버즈',
+    '스마트워치', '애플워치', '갤럭시워치',
+    '패딩', '다운재킷',
+    '공기청정기', '청정기',
+    '스피커',
+    '키보드',
+    '마우스',
+    '백팩', '가방',
+    '텀블러',
+    '면도기',
+    '청소기', '로봇청소기'
+  ];
   return productKeywords.filter(keyword => text.includes(keyword));
 }
 
