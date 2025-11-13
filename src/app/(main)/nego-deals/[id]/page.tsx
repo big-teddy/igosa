@@ -12,6 +12,8 @@ import { getNegoDealById } from '@/lib/data/mock-nego-deals';
 import { NegoDeal } from '@/types/nego-deal';
 import { negoDealService } from '@/lib/services/nego-deal-service';
 import { ShareDealToFeedDialog } from '@/components/nego-deals/ShareDealToFeedDialog';
+import { ChatWindow } from '@/components/chat/ChatWindow';
+import { ChatButton } from '@/components/chat/ChatButton';
 import { toast } from 'sonner';
 import {
   Clock,
@@ -39,6 +41,7 @@ export default function NegoDealDetailPage() {
   const [userName, setUserName] = useState<string>('');
   const [joining, setJoining] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -438,6 +441,12 @@ export default function NegoDealDetailPage() {
                         </p>
                       </div>
                       <div className="space-y-2">
+                        <ChatButton
+                          dealId={deal.id}
+                          userId={userId}
+                          onClick={() => setShowChat(!showChat)}
+                          className="w-full"
+                        />
                         <Button variant="default" size="lg" className="w-full" onClick={handleShareToFeed}>
                           <Share2 className="h-4 w-4 mr-2" />
                           피드에 공유하기
@@ -542,6 +551,20 @@ export default function NegoDealDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Chat Window */}
+        {showChat && isJoined && deal && userId && (
+          <div className="mt-8">
+            <ChatWindow
+              dealId={deal.id}
+              dealName={deal.productName}
+              userId={userId}
+              userName={userName}
+              onClose={() => setShowChat(false)}
+              className="max-w-4xl mx-auto h-[600px]"
+            />
+          </div>
+        )}
       </div>
 
       {/* Share Deal to Feed Dialog */}
