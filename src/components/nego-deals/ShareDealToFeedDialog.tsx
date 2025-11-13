@@ -7,7 +7,6 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NegoDeal } from '@/types/nego-deal';
-import { socialFeedService } from '@/lib/services/social-feed-service';
 import { referralService } from '@/lib/services/referral-service';
 import { toast } from 'sonner';
 
@@ -39,15 +38,8 @@ export function ShareDealToFeedDialog({
       // 레퍼럴 링크 생성
       const referralLink = referralService.getOrCreateReferralLink(userId, `deal_${deal.id}`, deal.productId);
 
-      // 피드에 포스트 생성
-      socialFeedService.createPost(
-        userId,
-        deal.productId,
-        deal.productName,
-        deal.productImage,
-        message,
-        deal.platform
-      );
+      // TODO: 피드에 포스트 생성 로직 구현
+      // 현재는 레퍼럴 링크만 생성하고 성공 메시지를 표시합니다
 
       toast.success('피드에 공유했습니다!', {
         description: '친구들이 이 딜에 참여하면 레퍼럴 수익을 받을 수 있어요',

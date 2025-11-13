@@ -75,6 +75,7 @@ export interface DiscountTier {
 export interface UserNegoDealParticipation {
   dealId: string;
   userId: string;
+  userName: string;
   joinedAt: string;
   invitedBy?: string; // 초대한 사람 userId (레퍼럴)
   status: 'active' | 'completed' | 'expired';

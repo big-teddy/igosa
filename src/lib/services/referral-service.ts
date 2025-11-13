@@ -305,7 +305,7 @@ class ReferralService {
       .length;
 
     let level: UserReferralLevel['level'] = 'bronze';
-    let requiredReferrals = LEVEL_REQUIREMENTS.silver;
+    let requiredReferrals: number = LEVEL_REQUIREMENTS.silver;
 
     if (totalReferrals >= LEVEL_REQUIREMENTS.platinum) {
       level = 'platinum';

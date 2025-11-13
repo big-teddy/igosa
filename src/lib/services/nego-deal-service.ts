@@ -53,6 +53,7 @@ class NegoDealService {
     const participation: UserNegoDealParticipation = {
       dealId: deal.id,
       userId,
+      userName,
       joinedAt: new Date().toISOString(),
       status: 'active',
       notified: false,
