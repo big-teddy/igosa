@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   getUserOrders,
   Order,
@@ -14,6 +15,9 @@ import {
   getOrderStatusColor,
   getNegoDealStatusLabel,
 } from "@/lib/data/mock-orders";
+import { usePurchaseHistory } from "@/hooks/usePurchaseHistory";
+import { PurchaseHistoryList } from "@/components/purchase/PurchaseHistoryList";
+import { PurchaseStats } from "@/components/purchase/PurchaseStats";
 import {
   Package,
   Truck,
@@ -23,12 +27,17 @@ import {
   AlertCircle,
   ChevronRight,
   Home,
+  ShoppingBag,
 } from "lucide-react";
 
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [userId, setUserId] = useState<string>('');
+
+  // Purchase history hook - only initialize after userId is set
+  const purchaseHistory = usePurchaseHistory(userId || 'guest');
 
   useEffect(() => {
     // 로그인 확인
@@ -40,6 +49,7 @@ export default function OrdersPage() {
 
     const userData = JSON.parse(storedUser);
     setUser(userData);
+    setUserId(userData.email || userData.id || 'user-1');
 
     // 주문 내역 로드
     const userOrders = getUserOrders(userData.email);
@@ -89,24 +99,38 @@ export default function OrdersPage() {
       </div>
 
       <div className="container max-w-6xl mx-auto py-8 px-4">
-        {orders.length === 0 ? (
-          // Empty State
-          <Card className="text-center py-12">
-            <CardContent>
-              <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-              <h2 className="text-xl font-bold mb-2">주문 내역이 없습니다</h2>
-              <p className="text-muted-foreground mb-6">
-                이거사에서 첫 네고딜에 참여해보세요!
-              </p>
-              <Link href="/nego-deals">
-                <Button>
-                  네고딜 둘러보기
-                  <ChevronRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
+        <Tabs defaultValue="nego-deals" className="w-full">
+          <TabsList className="grid w-full md:w-[400px] grid-cols-2 mb-6">
+            <TabsTrigger value="nego-deals" className="gap-2">
+              <Users className="h-4 w-4" />
+              네고딜 주문
+            </TabsTrigger>
+            <TabsTrigger value="purchases" className="gap-2">
+              <ShoppingBag className="h-4 w-4" />
+              전체 구매내역
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Nego Deals Tab */}
+          <TabsContent value="nego-deals">
+            {orders.length === 0 ? (
+              // Empty State
+              <Card className="text-center py-12">
+                <CardContent>
+                  <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <h2 className="text-xl font-bold mb-2">주문 내역이 없습니다</h2>
+                  <p className="text-muted-foreground mb-6">
+                    이거사에서 첫 네고딜에 참여해보세요!
+                  </p>
+                  <Link href="/nego-deals">
+                    <Button>
+                      네고딜 둘러보기
+                      <ChevronRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
           // Orders List
           <div className="space-y-4">
             {orders.map((order) => {
@@ -252,7 +276,34 @@ export default function OrdersPage() {
               );
             })}
           </div>
-        )}
+            )}
+          </TabsContent>
+
+          {/* Purchase History Tab */}
+          <TabsContent value="purchases">
+            <div className="space-y-6">
+              {/* Stats */}
+              {purchaseHistory.stats && purchaseHistory.stats.totalPurchases > 0 && (
+                <PurchaseStats stats={purchaseHistory.stats} />
+              )}
+
+              {/* Purchase List */}
+              {purchaseHistory.isLoading ? (
+                <Card className="text-center py-12">
+                  <CardContent>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+                    <p className="text-muted-foreground">구매 내역을 불러오는 중...</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <PurchaseHistoryList
+                  purchases={purchaseHistory.purchases}
+                  onStatusUpdate={purchaseHistory.updateStatus}
+                />
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

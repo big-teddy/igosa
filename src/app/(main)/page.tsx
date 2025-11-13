@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRecentSearches } from "@/hooks/useRecentSearches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -26,6 +27,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useModeStore } from "@/lib/stores/mode-store";
 import { toast } from "sonner";
+import { LoadingIndicator } from "@/components/ui/loading-indicator";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { RecentSearches } from "@/components/ui/recent-searches";
 import { ProductRecommendationCard } from "@/components/rich-cards/ProductRecommendationCard";
 import { ProductRecommendationCard as ProductCardType } from "@/types/rich-card";
 import { buildProductCards } from "@/lib/utils/card-builder";
@@ -71,6 +75,7 @@ const MODE_PLACEHOLDERS = {
 export default function Home() {
   const router = useRouter();
   const { searchMode, setSearchMode } = useModeStore();
+  const { searches: recentSearches, addSearch, removeSearch, clearAll: clearAllSearches } = useRecentSearches();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -80,6 +85,8 @@ export default function Home() {
   const [displayPlaceholder, setDisplayPlaceholder] = useState("");
   const [conversationMessages, setConversationMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [richCards, setRichCards] = useState<ProductCardType[]>([]);
+  const [errorState, setErrorState] = useState<{message: string, suggestions: string[]} | null>(null);
+  const [lastQuery, setLastQuery] = useState<string>("");
   const resultsEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -133,6 +140,9 @@ export default function Home() {
     if (query.trim()) {
       setIsSearching(true);
       setShowResults(true);
+      setErrorState(null); // Clear any previous errors
+      setLastQuery(query); // Store query for retry
+      addSearch(query); // Add to recent searches
 
       // Add user message immediately
       const userMessage = {
@@ -322,6 +332,7 @@ export default function Home() {
       } catch (error: any) {
         console.error('Search error:', error);
         setIsTyping(false);
+        setIsSearching(false);
 
         if (error.name === 'AbortError') {
           // Request was cancelled
@@ -330,34 +341,46 @@ export default function Home() {
         }
 
         // Determine error type and show appropriate message
-        let errorMessage = '죄송합니다. 검색 중 오류가 발생했습니다.';
-        let toastMessage = '검색 중 오류가 발생했습니다.';
+        let errorMessage = 'AI 응답을 불러오는 중 문제가 발생했습니다.';
+        let suggestions = ['잠시 후 다시 시도해보세요', '인터넷 연결을 확인해주세요', '검색어를 바꿔서 시도해보세요'];
 
         if (error.message.includes('API error: 429')) {
-          errorMessage = '잠시 후 다시 시도해주세요. (요청이 너무 많습니다)';
-          toastMessage = '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
+          errorMessage = '요청이 너무 많습니다. 잠시만 기다려주세요.';
+          suggestions = [
+            '1-2분 후 다시 시도해주세요',
+            '동시에 너무 많은 검색을 하지 마세요',
+            '다른 검색어로 시도해보세요'
+          ];
+          toast.error('요청 한도 초과');
         } else if (error.message.includes('API error: 401')) {
-          errorMessage = 'API 인증에 실패했습니다. 관리자에게 문의해주세요.';
-          toastMessage = 'API 인증 실패';
+          errorMessage = 'AI 서비스 인증에 문제가 있습니다.';
+          suggestions = [
+            '페이지를 새로고침 해보세요',
+            '로그인 상태를 확인해주세요',
+            '문제가 계속되면 고객센터에 문의하세요'
+          ];
+          toast.error('인증 오류');
         } else if (error.message.includes('API error: 500') || error.message.includes('API error: 503')) {
-          errorMessage = '서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.';
-          toastMessage = '서버 오류가 발생했습니다.';
+          errorMessage = '서버에 일시적인 문제가 발생했습니다.';
+          suggestions = [
+            '잠시 후 다시 시도해주세요',
+            '서버가 점검 중일 수 있습니다',
+            '문제가 지속되면 고객센터에 알려주세요'
+          ];
+          toast.error('서버 오류');
         } else if (error.message.includes('Failed to fetch') || error.message === 'Network request failed') {
-          errorMessage = '네트워크 연결을 확인해주세요.';
-          toastMessage = '네트워크 연결 오류';
+          errorMessage = '인터넷 연결이 불안정합니다.';
+          suggestions = [
+            'Wi-Fi 또는 데이터 연결을 확인하세요',
+            '네트워크가 안정적인 곳으로 이동하세요',
+            '페이지를 새로고침 해보세요'
+          ];
+          toast.error('네트워크 오류');
+        } else {
+          toast.error('검색 오류 발생');
         }
 
-        toast.error(toastMessage);
-
-        setSearchResults(prev => [
-          ...prev,
-          {
-            type: 'ai-response',
-            content: errorMessage + '\n\n다시 시도하시거나 다른 질문을 해주세요.',
-            timestamp: new Date().toISOString()
-          }
-        ]);
-        setIsSearching(false);
+        setErrorState({ message: errorMessage, suggestions });
       }
     }
   };
@@ -371,11 +394,21 @@ export default function Home() {
     setShowResults(false);
     setIsSearching(false);
     setIsTyping(false);
+    setErrorState(null);
+    setLastQuery("");
 
     // Abort any ongoing requests
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
+    }
+  };
+
+  // 에러 후 재시도 함수
+  const handleRetry = () => {
+    if (lastQuery) {
+      setErrorState(null);
+      handleSearch({ preventDefault: () => {} } as React.FormEvent, lastQuery);
     }
   };
 
@@ -398,6 +431,15 @@ export default function Home() {
 
   const handleTrendingSearch = (query: string) => {
     resetConversation();
+    setSearchQuery(query);
+    handleSearch({ preventDefault: () => {} } as React.FormEvent, query);
+  };
+
+  const handleRecentSearchClick = (query: string) => {
+    if (!showResults) {
+      // Start new conversation with recent search
+      resetConversation();
+    }
     setSearchQuery(query);
     handleSearch({ preventDefault: () => {} } as React.FormEvent, query);
   };
@@ -592,6 +634,23 @@ export default function Home() {
                 </motion.div>
               )}
             </div>
+
+            {/* Recent Searches - Only show when no conversation and has searches */}
+            {!showResults && recentSearches.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+              >
+                <RecentSearches
+                  searches={recentSearches}
+                  onSearchClick={handleRecentSearchClick}
+                  onRemove={removeSearch}
+                  onClearAll={clearAllSearches}
+                  maxDisplay={5}
+                />
+              </motion.div>
+            )}
 
             {/* Example Prompts - Only show when no conversation - 모드별로 변경 */}
             {!showResults && (
@@ -789,25 +848,28 @@ export default function Home() {
                 </motion.div>
               ))}
 
-              {/* Typing Indicator */}
+              {/* Enhanced Loading Indicator */}
               {isTyping && (
+                <div className="flex justify-center my-8">
+                  <LoadingIndicator mode={searchMode} />
+                </div>
+              )}
+
+              {/* Error Display */}
+              {errorState && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex justify-start"
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex justify-center my-8"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-white animate-pulse" />
-                    </div>
-                    <div className="bg-muted rounded-2xl rounded-tl-sm px-6 py-4 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </div>
-                    </div>
-                  </div>
+                  <ErrorDisplay
+                    message={errorState.message}
+                    suggestions={errorState.suggestions}
+                    onRetry={handleRetry}
+                    onGoHome={resetConversation}
+                  />
                 </motion.div>
               )}
 
