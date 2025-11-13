@@ -58,21 +58,34 @@ export function ChatWindow({
   }
 
   return (
-    <Card className={`flex flex-col ${className || ''}`}>
+    <Card
+      className={`flex flex-col ${className || ''}`}
+      role="region"
+      aria-label={`${dealName} 채팅방`}
+    >
       {/* Header */}
       <CardHeader className="border-b p-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-            <div className="bg-primary/10 p-1.5 md:p-2 rounded-lg shrink-0">
+            <div className="bg-primary/10 p-1.5 md:p-2 rounded-lg shrink-0" aria-hidden="true">
               <MessageCircle className="h-4 w-4 md:h-5 md:w-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <CardTitle className="text-sm md:text-base truncate">{dealName}</CardTitle>
-              <CardDescription className="flex items-center gap-1.5 md:gap-2 mt-1 text-xs">
-                <Users className="h-3 w-3 shrink-0" />
+              <CardTitle className="text-sm md:text-base truncate" id="chat-title">
+                {dealName}
+              </CardTitle>
+              <CardDescription
+                className="flex items-center gap-1.5 md:gap-2 mt-1 text-xs"
+                id="chat-description"
+              >
+                <Users className="h-3 w-3 shrink-0" aria-hidden="true" />
                 <span className="truncate">{room.participants.length}명 참여 중</span>
                 {room.unreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-1 md:ml-2 shrink-0">
+                  <Badge
+                    variant="destructive"
+                    className="ml-1 md:ml-2 shrink-0"
+                    aria-label={`읽지 않은 메시지 ${room.unreadCount}개`}
+                  >
                     {room.unreadCount}
                   </Badge>
                 )}
@@ -80,8 +93,14 @@ export function ChatWindow({
             </div>
           </div>
           {onClose && (
-            <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0">
-              <X className="h-4 w-4" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="shrink-0"
+              aria-label="채팅 닫기"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
             </Button>
           )}
         </div>

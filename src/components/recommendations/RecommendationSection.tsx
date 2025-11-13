@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RecommendationCard } from './RecommendationCard';
@@ -34,7 +34,7 @@ export function RecommendationSection({
   const [recommendations, setRecommendations] = useState<ProductRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadRecommendations = () => {
+  const loadRecommendations = useCallback(() => {
     setLoading(true);
     try {
       const response = recommendationService.getRecommendations({
@@ -51,13 +51,13 @@ export function RecommendationSection({
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, productId, category, type, limit]);
 
   useEffect(() => {
     loadRecommendations();
-  }, [userId, productId, category, type, limit]);
+  }, [loadRecommendations]);
 
-  const handleProductClick = (recommendation: ProductRecommendation) => {
+  const handleProductClick = useCallback((recommendation: ProductRecommendation) => {
     // Track click
     if (userId) {
       recommendationService.trackInteraction(userId, 'click', {
@@ -66,11 +66,11 @@ export function RecommendationSection({
     }
 
     onProductClick?.(recommendation.productId);
-  };
+  }, [userId, onProductClick]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     loadRecommendations();
-  };
+  }, [loadRecommendations]);
 
   if (loading) {
     return (
@@ -92,12 +92,12 @@ export function RecommendationSection({
     );
   }
 
+  const defaultTitle = useMemo(() => title || getDefaultTitle(type), [title, type]);
+  const defaultDescription = useMemo(() => description || getDefaultDescription(type), [description, type]);
+
   if (recommendations.length === 0) {
     return null;
   }
-
-  const defaultTitle = title || getDefaultTitle(type);
-  const defaultDescription = description || getDefaultDescription(type);
 
   return (
     <div className="space-y-4">
