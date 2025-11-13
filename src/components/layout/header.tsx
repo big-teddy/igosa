@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut, Package, Users, Menu, Sparkles } from "lucide-react";
+import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut, Package, Users, Menu, Sparkles, Bell } from "lucide-react";
 
 const navItems = [
   { href: "/feed", icon: Users, label: "친구 피드" },
   { href: "/nego-deals", icon: TrendingDown, label: "공동구매" },
   { href: "/products", icon: Package, label: "제품 둘러보기" },
+  { href: "/price-alerts", icon: Bell, label: "가격 알림" },
 ];
 
 export function Header() {
