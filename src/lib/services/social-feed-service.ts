@@ -3,12 +3,114 @@ import { FeedPost, Comment, FeedInteraction } from '@/types/social-feed';
 const LIKES_KEY = 'igosa-feed-likes';
 const COMMENTS_KEY = 'igosa-feed-comments';
 const BOOKMARKS_KEY = 'igosa-feed-bookmarks';
+const POSTS_KEY = 'igosa-feed-posts';
 
 /**
  * Social Feed Service
  * Manages social interactions (likes, comments, bookmarks) with localStorage
  */
 class SocialFeedService {
+  // ==================== POSTS ====================
+
+  /**
+   * Create a new post
+   */
+  createPost(
+    userId: string,
+    userName: string,
+    productId: string,
+    productName: string,
+    productImage: string,
+    content: string,
+    type: FeedPost['type'] = 'recommendation',
+    productPrice?: number,
+    userAvatar?: string
+  ): FeedPost {
+    try {
+      const newPost: FeedPost = {
+        id: this.generateId(),
+        userId,
+        userName,
+        userAvatar,
+        type,
+        productId,
+        productName,
+        productImage,
+        productPrice,
+        content,
+        timestamp: new Date().toISOString(),
+        likesCount: 0,
+        commentsCount: 0,
+        isLiked: false,
+        isBookmarked: false,
+      };
+
+      const stored = localStorage.getItem(POSTS_KEY);
+      const posts: FeedPost[] = stored ? JSON.parse(stored) : [];
+      posts.unshift(newPost); // Add to beginning
+      localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
+
+      return newPost;
+    } catch (error) {
+      console.error('Failed to create post:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all posts
+   */
+  getPosts(): FeedPost[] {
+    try {
+      const stored = localStorage.getItem(POSTS_KEY);
+      if (!stored) return [];
+
+      const posts: FeedPost[] = JSON.parse(stored);
+      return posts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    } catch (error) {
+      console.error('Failed to get posts:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get posts by user
+   */
+  getUserPosts(userId: string): FeedPost[] {
+    try {
+      const posts = this.getPosts();
+      return posts.filter((post) => post.userId === userId);
+    } catch (error) {
+      console.error('Failed to get user posts:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Delete a post
+   */
+  deletePost(postId: string, userId: string): boolean {
+    try {
+      const stored = localStorage.getItem(POSTS_KEY);
+      if (!stored) return false;
+
+      let posts: FeedPost[] = JSON.parse(stored);
+      const post = posts.find((p) => p.id === postId);
+
+      // Only allow user to delete their own posts
+      if (!post || post.userId !== userId) {
+        return false;
+      }
+
+      posts = posts.filter((p) => p.id !== postId);
+      localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
+      return true;
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+      return false;
+    }
+  }
+
   // ==================== LIKES ====================
 
   /**
@@ -247,6 +349,7 @@ class SocialFeedService {
     localStorage.removeItem(LIKES_KEY);
     localStorage.removeItem(COMMENTS_KEY);
     localStorage.removeItem(BOOKMARKS_KEY);
+    localStorage.removeItem(POSTS_KEY);
   }
 }
 

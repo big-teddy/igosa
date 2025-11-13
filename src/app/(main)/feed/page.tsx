@@ -16,6 +16,7 @@ import { FeedPost } from "@/components/social/FeedPost";
 import { ReferralDashboard } from "@/components/social/ReferralDashboard";
 import { FeedPost as FeedPostType } from "@/types/social-feed";
 import { referralService } from "@/lib/services/referral-service";
+import { socialFeedService } from "@/lib/services/social-feed-service";
 import {
   Heart,
   MessageCircle,
@@ -34,6 +35,7 @@ export default function FeedPage() {
   const [user, setUser] = useState<any>(null);
   const [userId, setUserId] = useState<string>('');
   const [activities, setActivities] = useState<SocialActivity[]>([]);
+  const [posts, setPosts] = useState<FeedPostType[]>([]);
   const [friendsCount, setFriendsCount] = useState(0);
   const [filter, setFilter] = useState<'all' | 'purchase' | 'review' | 'recommendation'>('all');
 
@@ -54,9 +56,13 @@ export default function FeedPage() {
     const uid = userData.email || userData.id || 'user-1';
     setUserId(uid);
 
-    // 친구들의 활동 피드 로드
+    // 친구들의 활동 피드 로드 (mock data)
     const feed = getSocialActivityFeed('user-1');
     setActivities(feed);
+
+    // 실제 포스트 로드
+    const realPosts = socialFeedService.getPosts();
+    setPosts(realPosts);
 
     const friends = getFriends('user-1');
     setFriendsCount(friends.length);
@@ -91,9 +97,15 @@ export default function FeedPage() {
     };
   };
 
-  const filteredActivities = activities.filter((activity) => {
+  // Combine real posts with mock activities
+  const allFeedItems = [
+    ...posts,
+    ...activities.map(convertToFeedPost),
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  const filteredFeedItems = allFeedItems.filter((item) => {
     if (filter === 'all') return true;
-    return activity.type === filter;
+    return item.type === filter;
   });
 
   const getActivityIcon = (type: string) => {
@@ -229,7 +241,7 @@ export default function FeedPage() {
               </div>
             </div>
 
-            {filteredActivities.length === 0 ? (
+            {filteredFeedItems.length === 0 ? (
               <Card>
                 <CardContent className="py-20 text-center">
                   <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
@@ -247,10 +259,10 @@ export default function FeedPage() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredActivities.map((activity) => (
+                {filteredFeedItems.map((post) => (
                   <FeedPost
-                    key={activity.id}
-                    post={convertToFeedPost(activity)}
+                    key={post.id}
+                    post={post}
                     currentUserId={userId}
                   />
                 ))}
@@ -258,7 +270,7 @@ export default function FeedPage() {
             )}
 
             {/* Load More */}
-            {filteredActivities.length > 0 && (
+            {filteredFeedItems.length > 0 && (
               <div className="text-center mt-8">
                 <Button variant="outline">더 보기</Button>
               </div>

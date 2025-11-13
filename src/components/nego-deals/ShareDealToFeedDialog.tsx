@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NegoDeal } from '@/types/nego-deal';
 import { referralService } from '@/lib/services/referral-service';
+import { socialFeedService } from '@/lib/services/social-feed-service';
 import { toast } from 'sonner';
 
 interface ShareDealToFeedDialogProps {
@@ -35,11 +36,31 @@ export function ShareDealToFeedDialog({
     setSharing(true);
 
     try {
-      // 레퍼럴 링크 생성
-      const referralLink = referralService.getOrCreateReferralLink(userId, `deal_${deal.id}`, deal.productId);
+      // 사용자 정보 가져오기
+      const storedUser = localStorage.getItem('user');
+      const userData = storedUser ? JSON.parse(storedUser) : null;
+      const userName = userData?.name || userData?.email || '사용자';
+      const userAvatar = userData?.avatar;
 
-      // TODO: 피드에 포스트 생성 로직 구현
-      // 현재는 레퍼럴 링크만 생성하고 성공 메시지를 표시합니다
+      // 레퍼럴 링크 생성
+      const referralLink = referralService.getOrCreateReferralLink(
+        userId,
+        `deal_${deal.id}`,
+        deal.productId
+      );
+
+      // 피드에 포스트 생성
+      const post = socialFeedService.createPost(
+        userId,
+        userName,
+        deal.productId,
+        deal.productName,
+        deal.productImage,
+        message,
+        'recommendation',
+        deal.targetPrice,
+        userAvatar
+      );
 
       toast.success('피드에 공유했습니다!', {
         description: '친구들이 이 딜에 참여하면 레퍼럴 수익을 받을 수 있어요',
@@ -48,6 +69,7 @@ export function ShareDealToFeedDialog({
       setMessage('');
       onClose();
     } catch (error) {
+      console.error('Share error:', error);
       toast.error('공유 중 오류가 발생했습니다');
     } finally {
       setSharing(false);
