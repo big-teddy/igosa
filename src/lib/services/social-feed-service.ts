@@ -1,4 +1,5 @@
 import { FeedPost, Comment, FeedInteraction } from '@/types/social-feed';
+import { notificationService } from './notification-service';
 
 const LIKES_KEY = 'igosa-feed-likes';
 const COMMENTS_KEY = 'igosa-feed-comments';
@@ -155,6 +156,28 @@ class SocialFeedService {
           timestamp: new Date().toISOString(),
         });
         localStorage.setItem(LIKES_KEY, JSON.stringify(likes));
+
+        // Notify post author about the like
+        const post = this.getPostById(postId);
+        if (post && post.userId !== userId) {
+          // Don't notify if user likes their own post
+          const liker = this.getUserInfo(userId);
+          notificationService.createNotification(
+            post.userId,
+            'like',
+            '❤️ 좋아요 알림',
+            `${liker.name}님이 회원님의 게시물을 좋아합니다.`,
+            {
+              fromUserId: userId,
+              fromUserName: liker.name,
+              productId: post.productId,
+              productName: post.productName,
+              productImage: post.productImage,
+            },
+            `/feed?post=${postId}`
+          );
+        }
+
         return true;
       }
     } catch (error) {
@@ -285,6 +308,27 @@ class SocialFeedService {
       allComments.push(newComment);
 
       localStorage.setItem(COMMENTS_KEY, JSON.stringify(allComments));
+
+      // Notify post author about the comment
+      const post = this.getPostById(comment.postId);
+      if (post && post.userId !== comment.userId) {
+        // Don't notify if user comments on their own post
+        notificationService.createNotification(
+          post.userId,
+          'comment',
+          '💬 댓글 알림',
+          `${comment.userName}님이 회원님의 게시물에 댓글을 남겼습니다: "${newComment.content.substring(0, 50)}${newComment.content.length > 50 ? '...' : ''}"`,
+          {
+            fromUserId: comment.userId,
+            fromUserName: comment.userName,
+            productId: post.productId,
+            productName: post.productName,
+            productImage: post.productImage,
+          },
+          `/feed?post=${comment.postId}`
+        );
+      }
+
       return newComment;
     } catch (error) {
       console.error('Failed to add comment:', error);
@@ -340,6 +384,51 @@ class SocialFeedService {
    */
   private generateId(): string {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Get post by ID
+   */
+  private getPostById(postId: string): FeedPost | null {
+    try {
+      const stored = localStorage.getItem(POSTS_KEY);
+      if (!stored) return null;
+
+      const posts: FeedPost[] = JSON.parse(stored);
+      return posts.find((post) => post.id === postId) || null;
+    } catch (error) {
+      console.error('Failed to get post by ID:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get user info from localStorage
+   */
+  private getUserInfo(userId: string): { name: string; avatar?: string } {
+    try {
+      // Try to get user info from localStorage
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        if (userData.id === userId) {
+          return {
+            name: userData.name || userData.email || '사용자',
+            avatar: userData.avatar,
+          };
+        }
+      }
+
+      // If user not found, return default
+      return {
+        name: '사용자',
+      };
+    } catch (error) {
+      console.error('Failed to get user info:', error);
+      return {
+        name: '사용자',
+      };
+    }
   }
 
   /**

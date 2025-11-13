@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut, Package, Users, Menu, Sparkles, Bell } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const navItems = [
   { href: "/feed", icon: Users, label: "친구 피드" },
@@ -91,6 +92,9 @@ export function Header() {
           <div className="flex items-center gap-2">
             {user ? (
               <>
+                {/* Notification Bell */}
+                <NotificationBell userId={user.id} />
+
                 {/* Desktop User Menu */}
                 <div className="hidden md:flex items-center gap-2">
                   <Link href="/my">

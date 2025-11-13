@@ -6,6 +6,7 @@ import {
   COMMISSION_RATES,
   LEVEL_REQUIREMENTS,
 } from '@/types/referral';
+import { notificationService } from './notification-service';
 
 const REFERRAL_LINKS_KEY = 'igosa-referral-links';
 const REFERRAL_PURCHASES_KEY = 'igosa-referral-purchases';
@@ -154,6 +155,20 @@ class ReferralService {
 
       // Update link stats
       this.updateLinkStats(referralCode, commissionAmount);
+
+      // Notify referrer about earnings
+      notificationService.createNotification(
+        link.userId,
+        'referral_earned',
+        '💰 레퍼럴 수익 발생!',
+        `친구가 ${productName}을(를) 구매했습니다. ₩${commissionAmount.toLocaleString()} 수익이 발생했어요!`,
+        {
+          productId,
+          productName,
+          earnings: commissionAmount,
+        },
+        '/referral/dashboard'
+      );
 
       return purchase;
     } catch (error) {

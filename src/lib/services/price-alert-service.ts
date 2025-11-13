@@ -1,4 +1,5 @@
 import { PriceAlert, PriceHistory, PriceTracking, PriceAlertStats } from '@/types/price-alert';
+import { notificationService } from './notification-service';
 
 const PRICE_ALERTS_KEY = 'igosa-price-alerts';
 const PRICE_HISTORY_KEY = 'igosa-price-history';
@@ -176,6 +177,22 @@ class PriceAlertService {
           alert.notified = true;
           alert.triggeredAt = new Date().toISOString();
           triggeredAlerts.push(alert);
+
+          // Create notification
+          notificationService.createNotification(
+            userId,
+            'price_alert',
+            '🔔 가격 알림!',
+            `${alert.productName}이(가) 목표 가격에 도달했습니다! ₩${alert.currentPrice.toLocaleString()}`,
+            {
+              productId: alert.productId,
+              productName: alert.productName,
+              productImage: alert.productImage,
+              price: alert.currentPrice,
+              targetPrice: alert.targetPrice,
+            },
+            `/products/${alert.productId}`
+          );
         }
       });
 

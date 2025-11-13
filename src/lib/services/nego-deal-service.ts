@@ -17,6 +17,7 @@ import {
   NegoDealParticipant,
 } from '@/types/nego-deal';
 import { referralService } from './referral-service';
+import { notificationService } from './notification-service';
 
 const STORAGE_KEY_PARTICIPATIONS = 'igosa_nego_participations';
 const STORAGE_KEY_NOTIFICATIONS = 'igosa_nego_notifications';
@@ -71,7 +72,7 @@ class NegoDealService {
     }
 
     // 목표 달성 확인 및 알림
-    this.checkGoalReached(deal.id);
+    this.checkGoalReached(deal);
 
     return participation;
   }
@@ -214,9 +215,58 @@ class NegoDealService {
   /**
    * 목표 달성 확인 및 알림 생성
    */
-  private checkGoalReached(dealId: string): void {
-    // TODO: 실제 딜 데이터와 연동
-    // 목표 달성 시 참여자들에게 알림 생성
+  private checkGoalReached(deal: NegoDeal): void {
+    const currentCount = this.getCurrentParticipantCount(deal.id);
+    const participants = this.getDealParticipants(deal.id);
+
+    // Check if goal just reached (exactly at target or just passed)
+    if (currentCount >= deal.targetParticipants && currentCount <= deal.targetParticipants + 1) {
+      // Notify all participants about goal reached
+      participants.forEach((participant) => {
+        notificationService.createNotification(
+          participant.userId,
+          'deal_goal_reached',
+          '🎉 네고딜 목표 달성!',
+          `${deal.productName} 딜이 목표를 달성했습니다! 최종 할인가로 구매하세요.`,
+          {
+            dealId: deal.id,
+            productId: deal.productId,
+            productName: deal.productName,
+            productImage: deal.productImage,
+            price: deal.targetPrice,
+          },
+          `/nego-deals/${deal.id}`
+        );
+      });
+    }
+
+    // Check if discount tier upgraded
+    if (deal.discountTiers && deal.discountTiers.length > 0) {
+      // Find if we just reached a new tier
+      const reachedTier = deal.discountTiers.find(
+        (tier) => currentCount === tier.participantCount
+      );
+
+      if (reachedTier) {
+        // Notify all participants about tier upgrade
+        participants.forEach((participant) => {
+          notificationService.createNotification(
+            participant.userId,
+            'deal_goal_reached',
+            '⬆️ 할인율 업그레이드!',
+            `${deal.productName} 딜이 ${reachedTier.discountRate}% 할인을 달성했습니다!`,
+            {
+              dealId: deal.id,
+              productId: deal.productId,
+              productName: deal.productName,
+              productImage: deal.productImage,
+              price: reachedTier.price,
+            },
+            `/nego-deals/${deal.id}`
+          );
+        });
+      }
+    }
   }
 
   /**
