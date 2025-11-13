@@ -1,17 +1,18 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import {
-  getNegoDealById,
-  NegoDeal
-} from "@/lib/data/mock-nego-deals";
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { getNegoDealById } from '@/lib/data/mock-nego-deals';
+import { NegoDeal } from '@/types/nego-deal';
+import { negoDealService } from '@/lib/services/nego-deal-service';
+import { ShareDealToFeedDialog } from '@/components/nego-deals/ShareDealToFeedDialog';
+import { toast } from 'sonner';
 import {
   Clock,
   Users,
@@ -24,19 +25,43 @@ import {
   ShoppingBag,
   AlertCircle,
   Calendar,
-  Package
-} from "lucide-react";
+  Package,
+  CheckCircle,
+  ArrowUp,
+} from 'lucide-react';
 
 export default function NegoDealDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [deal, setDeal] = useState<NegoDeal | null>(null);
+  const [isJoined, setIsJoined] = useState(false);
+  const [userId, setUserId] = useState<string>('');
+  const [userName, setUserName] = useState<string>('');
+  const [joining, setJoining] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   useEffect(() => {
     if (params.id) {
       const foundDeal = getNegoDealById(params.id as string);
       if (foundDeal) {
-        setDeal(foundDeal);
+        // 서비스에서 최신 데이터로 업데이트
+        const updatedDeal = negoDealService.updateDealWithParticipants(foundDeal);
+        setDeal(updatedDeal);
+      }
+    }
+
+    // 로그인 사용자 확인
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      const uid = userData.email || userData.id || 'user-1';
+      const name = userData.name || userData.email || '사용자';
+      setUserId(uid);
+      setUserName(name);
+
+      // 참여 여부 확인
+      if (params.id) {
+        setIsJoined(negoDealService.hasJoined(params.id as string, uid));
       }
     }
   }, [params.id]);
@@ -60,20 +85,75 @@ export default function NegoDealDetailPage() {
   }
 
   const handleParticipate = () => {
-    // 로그인 확인
-    const storedUser = localStorage.getItem('user');
-    if (!storedUser) {
+    if (!userId) {
+      toast.error('로그인이 필요합니다');
       router.push(`/login?redirect=/nego-deals/${params.id}`);
       return;
     }
 
-    // 결제 페이지로 이동
-    router.push(`/checkout?dealId=${params.id}`);
+    if (isJoined) {
+      toast.info('이미 참여한 딜입니다');
+      return;
+    }
+
+    setJoining(true);
+
+    try {
+      // 딜에 참여
+      negoDealService.joinDeal(deal, userId, userName);
+
+      // 참여 상태 업데이트
+      setIsJoined(true);
+
+      // 딜 정보 새로고침
+      const updatedDeal = negoDealService.updateDealWithParticipants(deal);
+      setDeal(updatedDeal);
+
+      // 다음 할인 단계 확인
+      const nextTier = negoDealService.getNextTierInfo(updatedDeal);
+
+      toast.success('네고딜에 참여했습니다!', {
+        description: nextTier
+          ? `${nextTier.count}명만 더 모이면 ${nextTier.discount}% 할인!`
+          : '목표 인원을 달성했습니다!',
+      });
+
+      // 목표 달성 시
+      if (updatedDeal.progress >= 100) {
+        toast.success('🎉 목표 달성! 최대 할인가로 구매할 수 있습니다!');
+      }
+    } catch (error: any) {
+      toast.error(error.message || '참여 중 오류가 발생했습니다');
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const handleShareLink = () => {
+    if (!userId || !deal) return;
+
+    const referralCode = negoDealService.createReferralLink(deal.id, userId);
+    const shareUrl = `${window.location.origin}/nego-deals/${deal.id}?ref=${referralCode}`;
+
+    navigator.clipboard.writeText(shareUrl);
+    toast.success('링크가 복사되었습니다!', {
+      description: '친구를 초대하고 레퍼럴 보상을 받으세요',
+    });
+  };
+
+  const handleShareToFeed = () => {
+    if (!userId) {
+      toast.error('로그인이 필요합니다');
+      return;
+    }
+    setShowShareDialog(true);
   };
 
   const timeUrgent = deal.hoursRemaining <= 24;
   const isGoalReached = deal.status === 'goal_reached';
   const remainingSlots = deal.targetParticipants - deal.currentParticipants;
+  const nextTier = negoDealService.getNextTierInfo(deal);
+  const participants = negoDealService.getDealParticipants(deal.id);
 
   return (
     <div className="min-h-screen bg-background">
@@ -142,7 +222,7 @@ export default function NegoDealDetailPage() {
                       ₩{deal.originalPrice.toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 mb-4">
                     <Badge variant="destructive" className="text-sm px-3 py-1">
                       {deal.discountRate}% 할인
                     </Badge>
@@ -150,9 +230,66 @@ export default function NegoDealDetailPage() {
                       ₩{deal.savings.toLocaleString()} 절약
                     </span>
                   </div>
+                  {nextTier && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                      <p className="text-sm text-orange-800 font-medium">
+                        🔥 {nextTier.count}명만 더 모이면 {nextTier.discount}% 할인!
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
+
+            {/* Discount Tiers */}
+            {deal.discountTiers && deal.discountTiers.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">할인 단계</CardTitle>
+                  <CardDescription>
+                    참여자가 늘어날수록 할인율이 자동으로 올라갑니다
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {deal.discountTiers.map((tier, idx) => {
+                    const isReached = deal.currentParticipants >= tier.participantCount;
+                    const isCurrent =
+                      deal.currentParticipants >= tier.participantCount &&
+                      (idx === deal.discountTiers!.length - 1 ||
+                        deal.currentParticipants < deal.discountTiers![idx + 1].participantCount);
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-center justify-between p-3 rounded-lg border-2 ${
+                          isCurrent
+                            ? 'border-primary bg-primary/5'
+                            : isReached
+                              ? 'border-green-500 bg-green-50'
+                              : 'border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {isReached ? (
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
+                          )}
+                          <span className="font-medium">{tier.participantCount}명 달성</span>
+                          {isCurrent && <ArrowUp className="h-4 w-4 text-primary animate-bounce" />}
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-lg">{tier.discountRate}% 할인</p>
+                          <p className="text-sm text-muted-foreground">
+                            ₩{tier.price.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Highlights */}
             <Card>
@@ -264,27 +401,77 @@ export default function NegoDealDetailPage() {
                     </div>
                   </div>
 
-                  {/* Participate Button */}
-                  <Button
-                    size="lg"
-                    className="w-full"
-                    onClick={handleParticipate}
-                    disabled={deal.status === 'expired'}
-                  >
-                    {isGoalReached ? (
-                      <>
-                        <Zap className="h-4 w-4 mr-2" />
-                        지금 참여하기 (마감 임박)
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingBag className="h-4 w-4 mr-2" />
-                        네고딜 참여하기
-                      </>
-                    )}
-                  </Button>
+                  {/* Participant Avatars */}
+                  {participants.length > 0 && (
+                    <div className="border-t pt-4">
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {participants.length}명이 참여 중입니다
+                      </p>
+                      <div className="flex items-center -space-x-2">
+                        {participants.slice(0, 10).map((p, idx) => (
+                          <div
+                            key={idx}
+                            className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold border-2 border-background"
+                          >
+                            {p.userName[0]}
+                          </div>
+                        ))}
+                        {participants.length > 10 && (
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium border-2 border-background">
+                            +{participants.length - 10}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-                  {deal.status === 'goal_reached' && (
+                  {/* Participate Button */}
+                  {isJoined ? (
+                    <div className="space-y-2">
+                      <div className="p-4 bg-green-50 border-2 border-green-500 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <span className="font-bold text-green-900">참여 완료!</span>
+                        </div>
+                        <p className="text-sm text-green-700">
+                          친구를 초대하고 레퍼럴 보상을 받으세요
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Button variant="default" size="lg" className="w-full" onClick={handleShareToFeed}>
+                          <Share2 className="h-4 w-4 mr-2" />
+                          피드에 공유하기
+                        </Button>
+                        <Button variant="outline" size="lg" className="w-full" onClick={handleShareLink}>
+                          <Share2 className="h-4 w-4 mr-2" />
+                          링크 복사
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      size="lg"
+                      className="w-full"
+                      onClick={handleParticipate}
+                      disabled={deal.status === 'expired' || joining}
+                    >
+                      {joining ? (
+                        '참여 중...'
+                      ) : isGoalReached ? (
+                        <>
+                          <Zap className="h-4 w-4 mr-2" />
+                          지금 참여하기 (마감 임박)
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingBag className="h-4 w-4 mr-2" />
+                          네고딜 참여하기
+                        </>
+                      )}
+                    </Button>
+                  )}
+
+                  {deal.status === 'goal_reached' && !isJoined && (
                     <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
                       <div className="flex items-start gap-2">
                         <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
@@ -301,16 +488,24 @@ export default function NegoDealDetailPage() {
                   )}
 
                   {/* Additional Actions */}
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Heart className="h-4 w-4 mr-2" />
-                      찜하기
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Share2 className="h-4 w-4 mr-2" />
-                      공유
-                    </Button>
-                  </div>
+                  {!isJoined && (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="flex-1">
+                          <Heart className="h-4 w-4 mr-2" />
+                          찜하기
+                        </Button>
+                        <Button variant="outline" size="sm" className="flex-1" onClick={handleShareToFeed}>
+                          <Share2 className="h-4 w-4 mr-2" />
+                          피드 공유
+                        </Button>
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full" onClick={handleShareLink}>
+                        <Share2 className="h-4 w-4 mr-2" />
+                        링크 복사
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -348,6 +543,16 @@ export default function NegoDealDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Share Deal to Feed Dialog */}
+      {deal && userId && (
+        <ShareDealToFeedDialog
+          isOpen={showShareDialog}
+          onClose={() => setShowShareDialog(false)}
+          deal={deal}
+          userId={userId}
+        />
+      )}
     </div>
   );
 }
