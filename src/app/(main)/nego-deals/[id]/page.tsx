@@ -561,7 +561,7 @@ export default function NegoDealDetailPage() {
               userId={userId}
               userName={userName}
               onClose={() => setShowChat(false)}
-              className="max-w-4xl mx-auto h-[600px]"
+              className="max-w-4xl mx-auto h-[500px] md:h-[600px]"
             />
           </div>
         )}

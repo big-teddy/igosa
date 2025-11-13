@@ -60,19 +60,19 @@ export function ChatWindow({
   return (
     <Card className={`flex flex-col ${className || ''}`}>
       {/* Header */}
-      <CardHeader className="border-b">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary/10 p-2 rounded-lg">
-              <MessageCircle className="h-5 w-5 text-primary" />
+      <CardHeader className="border-b p-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+            <div className="bg-primary/10 p-1.5 md:p-2 rounded-lg shrink-0">
+              <MessageCircle className="h-4 w-4 md:h-5 md:w-5 text-primary" />
             </div>
-            <div>
-              <CardTitle className="text-base">{dealName}</CardTitle>
-              <CardDescription className="flex items-center gap-2 mt-1">
-                <Users className="h-3 w-3" />
-                <span>{room.participants.length}명 참여 중</span>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-sm md:text-base truncate">{dealName}</CardTitle>
+              <CardDescription className="flex items-center gap-1.5 md:gap-2 mt-1 text-xs">
+                <Users className="h-3 w-3 shrink-0" />
+                <span className="truncate">{room.participants.length}명 참여 중</span>
                 {room.unreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-2">
+                  <Badge variant="destructive" className="ml-1 md:ml-2 shrink-0">
                     {room.unreadCount}
                   </Badge>
                 )}
@@ -80,7 +80,7 @@ export function ChatWindow({
             </div>
           </div>
           {onClose && (
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0">
               <X className="h-4 w-4" />
             </Button>
           )}

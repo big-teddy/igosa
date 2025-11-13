@@ -45,22 +45,22 @@ export function RecommendationCard({ recommendation, onClick }: RecommendationCa
           </div>
 
           {/* Content */}
-          <div className="p-3 space-y-2">
+          <div className="p-2 md:p-3 space-y-1.5 md:space-y-2">
             {/* Recommendation reason */}
             <div className="flex items-center gap-1 text-xs text-primary">
-              <TrendingUp className="h-3 w-3" />
-              <span className="font-medium">{recommendation.reason}</span>
+              <TrendingUp className="h-3 w-3 shrink-0" />
+              <span className="font-medium truncate">{recommendation.reason}</span>
             </div>
 
             {/* Product name */}
-            <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
+            <h3 className="font-semibold text-xs md:text-sm line-clamp-2 group-hover:text-primary transition-colors">
               {recommendation.productName}
             </h3>
 
             {/* Price */}
-            <div className="space-y-1">
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold">
+            <div className="space-y-0.5 md:space-y-1">
+              <div className="flex items-baseline gap-1 md:gap-2 flex-wrap">
+                <span className="text-base md:text-lg font-bold">
                   ₩{recommendation.price.toLocaleString()}
                 </span>
                 {recommendation.originalPrice && (
