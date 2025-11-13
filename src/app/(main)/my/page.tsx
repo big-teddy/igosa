@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
+import { ReferralDashboard } from "@/components/dashboard/ReferralDashboard";
+import { dashboardService } from "@/lib/services/dashboard-service";
 import {
   getWishlist,
   getRecentlyViewed,
@@ -17,6 +20,7 @@ import {
 import { mockProducts, Product } from "@/lib/data/mock-products";
 import { mockNegoDeals, getNegoDealById, NegoDeal } from "@/lib/data/mock-nego-deals";
 import { getUserOrders, Order } from "@/lib/data/mock-orders";
+import type { DashboardStats, ReferralDashboardStats } from "@/types/dashboard";
 import {
   User,
   Package,
@@ -24,23 +28,25 @@ import {
   Clock,
   TrendingDown,
   Mail,
-  Phone,
-  MapPin,
   Edit,
   ChevronRight,
-  ShoppingBag,
   Users,
   Zap,
   Home,
+  BarChart3,
+  DollarSign,
 } from "lucide-react";
 
 export default function MyPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [userId, setUserId] = useState<string>("");
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
   const [recentlyViewedIds, setRecentlyViewedIds] = useState<string[]>([]);
   const [participatedDealIds, setParticipatedDealIds] = useState<string[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [referralStats, setReferralStats] = useState<ReferralDashboardStats | null>(null);
 
   useEffect(() => {
     // 로그인 확인
@@ -52,6 +58,8 @@ export default function MyPage() {
 
     const userData = JSON.parse(storedUser);
     setUser(userData);
+    const uid = userData.email || userData.id || 'user-1';
+    setUserId(uid);
 
     // 사용자 활동 데이터 로드
     setWishlistIds(getWishlist());
@@ -59,6 +67,14 @@ export default function MyPage() {
     const participated = getParticipatedDeals();
     setParticipatedDealIds(participated.map(p => p.dealId));
     setOrders(getUserOrders(userData.email));
+
+    // 대시보드 통계 로드
+    const stats = dashboardService.getDashboardStats(uid);
+    setDashboardStats(stats);
+
+    // 레퍼럴 통계 로드
+    const refStats = dashboardService.getReferralDashboardStats(uid);
+    setReferralStats(refStats);
   }, [router]);
 
   const handleToggleWishlist = (productId: string) => {
@@ -89,7 +105,7 @@ export default function MyPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-background">
-        <div className="container max-w-6xl mx-auto py-8 px-4">
+        <div className="container max-w-7xl mx-auto py-8 px-4">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center">
@@ -121,8 +137,8 @@ export default function MyPage() {
         </div>
       </div>
 
-      <div className="container max-w-6xl mx-auto py-8 px-4">
-        {/* Stats */}
+      <div className="container max-w-7xl mx-auto py-8 px-4">
+        {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {stats.map((stat, idx) => {
             const Icon = stat.icon;
@@ -139,25 +155,43 @@ export default function MyPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="participated" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="dashboard">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              대시보드
+            </TabsTrigger>
+            <TabsTrigger value="referral">
+              <DollarSign className="h-4 w-4 mr-2" />
+              레퍼럴
+            </TabsTrigger>
             <TabsTrigger value="participated">
               <TrendingDown className="h-4 w-4 mr-2" />
-              참여 네고딜
+              네고딜
             </TabsTrigger>
             <TabsTrigger value="orders">
               <Package className="h-4 w-4 mr-2" />
-              주문내역
+              주문
             </TabsTrigger>
             <TabsTrigger value="wishlist">
               <Heart className="h-4 w-4 mr-2" />
-              찜한제품
+              찜
             </TabsTrigger>
             <TabsTrigger value="recent">
               <Clock className="h-4 w-4 mr-2" />
-              최근본
+              최근
             </TabsTrigger>
           </TabsList>
+
+          {/* Dashboard Tab */}
+          <TabsContent value="dashboard" className="space-y-4">
+            {dashboardStats && <DashboardOverview stats={dashboardStats} />}
+          </TabsContent>
+
+          {/* Referral Dashboard Tab */}
+          <TabsContent value="referral" className="space-y-4">
+            {referralStats && <ReferralDashboard stats={referralStats} />}
+          </TabsContent>
 
           {/* Participated Deals */}
           <TabsContent value="participated" className="space-y-4">
