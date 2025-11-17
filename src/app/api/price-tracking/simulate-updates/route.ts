@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { priceAlertNotification } from '@/lib/services/price-alert-notification';
+import type { PriceAlertEvent } from '@/types/price-tracking';
 
 export async function POST(request: NextRequest) {
   try {
@@ -94,6 +96,38 @@ export async function POST(request: NextRequest) {
               currentPrice: clampedPrice,
               savings: tracking.current_price - clampedPrice,
             });
+
+            // Send notification
+            const alertEvent: PriceAlertEvent = {
+              trackingId: tracking.id,
+              userId: tracking.user_id,
+              productId: tracking.product_id,
+              productName: tracking.product_name,
+              targetPrice: tracking.target_price,
+              currentPrice: clampedPrice,
+              priceDropAmount: tracking.current_price - clampedPrice,
+              priceDropPercentage: ((tracking.current_price - clampedPrice) / tracking.current_price * 100),
+              triggeredAt: new Date(),
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              purchaseUrl: `/products/${tracking.product_id}`,
+            };
+
+            // Get user email from Supabase Auth
+            const { data: { user } } = await supabase.auth.admin.getUserById(tracking.user_id);
+
+            if (user?.email) {
+              try {
+                await priceAlertNotification.send({
+                  userId: tracking.user_id,
+                  userEmail: user.email,
+                  userName: user.user_metadata?.name,
+                  event: alertEvent,
+                  channels: tracking.notification_channels || ['push'],
+                });
+              } catch (notifError) {
+                console.error('Failed to send notification:', notifError);
+              }
+            }
           }
         }
       }
