@@ -135,205 +135,214 @@ export default function Home() {
     }
   }, [showResults, isSearching]);
 
-  const handleSearch = async (e: React.FormEvent, queryOverride?: string) => {
+  const handleSearch = useCallback(async (e: React.FormEvent, queryOverride?: string) => {
     e.preventDefault();
+
+    setIsSearching(true);
+    setShowResults(true);
+    setErrorState(null);
+
+    // Get query from override or current state
     const query = queryOverride || searchQuery;
 
-    if (query.trim()) {
-      setIsSearching(true);
-      setShowResults(true);
-      setErrorState(null); // Clear any previous errors
-      setLastQuery(query); // Store query for retry
-      addSearch(query); // Add to recent searches
+    if (!query.trim()) {
+      setIsSearching(false);
+      return;
+    }
 
-      // Add user message immediately
-      const userMessage: SearchMessage = {
-        type: 'user-query' as const,
-        content: query,
-        timestamp: new Date().toISOString()
-      };
-      setSearchResults(prev => [...prev, userMessage]);
-      setSearchQuery(""); // Clear input immediately
+    setLastQuery(query);
+    addSearch(query);
 
-      // Update conversation history
-      const newMessages = [
-        ...conversationMessages,
+    // Add user message immediately
+    const userMessage: SearchMessage = {
+      type: 'user-query' as const,
+      content: query,
+      timestamp: new Date().toISOString()
+    };
+    setSearchResults(prev => [...prev, userMessage]);
+    setSearchQuery("");
+
+    // Update conversation history using functional update
+    let newMessages: ConversationMessage[] = [];
+    setConversationMessages(prev => {
+      newMessages = [
+        ...prev,
         { role: 'user' as const, content: query }
       ];
-      setConversationMessages(newMessages);
+      return newMessages;
+    });
 
-      // Simulate typing indicator
-      setIsTyping(true);
+    // Simulate typing indicator
+    setIsTyping(true);
 
-      // Create abort controller for cancellation
-      abortControllerRef.current = new AbortController();
+    // Create abort controller for cancellation
+    abortControllerRef.current = new AbortController();
 
-      try {
-        // Call actual chat API with mode
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messages: newMessages,
-            mode: searchMode
-          }),
-          signal: abortControllerRef.current.signal
-        });
+    try {
+      // Call actual chat API with mode
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: newMessages,
+          mode: searchMode
+        }),
+        signal: abortControllerRef.current.signal
+      });
 
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
 
-        if (!response.body) {
-          throw new Error('No response body');
-        }
+      if (!response.body) {
+        throw new Error('No response body');
+      }
 
-        // Handle streaming response
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let aiResponse = '';
-        let currentResult: any = null;
+      // Handle streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let aiResponse = '';
+      let currentResult: any = null;
 
-        setIsTyping(false);
+      setIsTyping(false);
 
-        // Add initial AI response placeholder
-        const aiMessagePlaceholder: SearchMessage = {
-          type: 'ai-response' as const,
-          content: '',
-          timestamp: new Date().toISOString()
-        };
-        setSearchResults(prev => [...prev, aiMessagePlaceholder]);
+      // Add initial AI response placeholder
+      const aiMessagePlaceholder: SearchMessage = {
+        type: 'ai-response' as const,
+        content: '',
+        timestamp: new Date().toISOString()
+      };
+      setSearchResults(prev => [...prev, aiMessagePlaceholder]);
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
 
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') continue;
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
 
-              try {
-                const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content || '';
-                if (content) {
-                  aiResponse += content;
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content || '';
+              if (content) {
+                aiResponse += content;
 
-                  // Update the last message with streaming content
-                  setSearchResults(prev => {
-                    const newResults = [...prev];
-                    const lastIdx = newResults.length - 1;
-                    if (newResults[lastIdx] && newResults[lastIdx].type === 'ai-response') {
-                      newResults[lastIdx] = {
-                        ...newResults[lastIdx],
-                        content: aiResponse
-                      };
-                    }
-                    return newResults;
-                  });
-                }
-              } catch (e) {
-                // Ignore JSON parse errors for incomplete chunks
+                // Update the last message with streaming content
+                setSearchResults(prev => {
+                  const newResults = [...prev];
+                  const lastIdx = newResults.length - 1;
+                  if (newResults[lastIdx] && newResults[lastIdx].type === 'ai-response') {
+                    newResults[lastIdx] = {
+                      ...newResults[lastIdx],
+                      content: aiResponse
+                    };
+                  }
+                  return newResults;
+                });
               }
+            } catch (e) {
+              // Ignore JSON parse errors for incomplete chunks
             }
           }
         }
-
-        // Update conversation history with AI response
-        setConversationMessages(prev => [
-          ...prev,
-          { role: 'assistant', content: aiResponse }
-        ]);
-
-        // 제품 검색 키워드 감지 및 Rich Card 생성
-        const detectedKeyword = detectProductKeyword(query);
-
-        if (detectedKeyword) {
-          // 제품 검색 및 Rich Card 생성
-          const products = searchProducts(detectedKeyword);
-          if (products.length > 0) {
-            const cards = buildProductCards(
-              products.slice(0, 3), // 최대 3개 제품
-              userId,
-              searchMode,
-              getFriendPurchases,
-              getSocialReviewsByProduct,
-              getInfluencerReviewsByProduct,
-              getInfluencerReviewSummary
-            );
-
-            // Rich Card 데이터 추가
-            setRichCards(cards);
-            const richCardsMessage: SearchMessage = {
-              type: 'rich-cards' as const,
-              cards: cards,
-              timestamp: new Date().toISOString()
-            };
-            setSearchResults(prev => [...prev, richCardsMessage]);
-          }
-        }
-
-        setIsSearching(false);
-      } catch (error: any) {
-        console.error('Search error:', error);
-        setIsTyping(false);
-        setIsSearching(false);
-
-        if (error.name === 'AbortError') {
-          // Request was cancelled
-          toast.info('검색이 취소되었습니다.');
-          return;
-        }
-
-        // Determine error type and show appropriate message
-        let errorMessage = 'AI 응답을 불러오는 중 문제가 발생했습니다.';
-        let suggestions = ['잠시 후 다시 시도해보세요', '인터넷 연결을 확인해주세요', '검색어를 바꿔서 시도해보세요'];
-
-        if (error.message.includes('API error: 429')) {
-          errorMessage = '요청이 너무 많습니다. 잠시만 기다려주세요.';
-          suggestions = [
-            '1-2분 후 다시 시도해주세요',
-            '동시에 너무 많은 검색을 하지 마세요',
-            '다른 검색어로 시도해보세요'
-          ];
-          toast.error('요청 한도 초과');
-        } else if (error.message.includes('API error: 401')) {
-          errorMessage = 'AI 서비스 인증에 문제가 있습니다.';
-          suggestions = [
-            '페이지를 새로고침 해보세요',
-            '로그인 상태를 확인해주세요',
-            '문제가 계속되면 고객센터에 문의하세요'
-          ];
-          toast.error('인증 오류');
-        } else if (error.message.includes('API error: 500') || error.message.includes('API error: 503')) {
-          errorMessage = '서버에 일시적인 문제가 발생했습니다.';
-          suggestions = [
-            '잠시 후 다시 시도해주세요',
-            '서버가 점검 중일 수 있습니다',
-            '문제가 지속되면 고객센터에 알려주세요'
-          ];
-          toast.error('서버 오류');
-        } else if (error.message.includes('Failed to fetch') || error.message === 'Network request failed') {
-          errorMessage = '인터넷 연결이 불안정합니다.';
-          suggestions = [
-            'Wi-Fi 또는 데이터 연결을 확인하세요',
-            '네트워크가 안정적인 곳으로 이동하세요',
-            '페이지를 새로고침 해보세요'
-          ];
-          toast.error('네트워크 오류');
-        } else {
-          toast.error('검색 오류 발생');
-        }
-
-        setErrorState({ message: errorMessage, suggestions });
       }
+
+      // Update conversation history with AI response
+      setConversationMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: aiResponse }
+      ]);
+
+      // 제품 검색 키워드 감지 및 Rich Card 생성
+      const detectedKeyword = detectProductKeyword(query);
+
+      if (detectedKeyword) {
+        // 제품 검색 및 Rich Card 생성
+        const products = searchProducts(detectedKeyword);
+        if (products.length > 0) {
+          const cards = buildProductCards(
+            products.slice(0, 3), // 최대 3개 제품
+            userId,
+            searchMode,
+            getFriendPurchases,
+            getSocialReviewsByProduct,
+            getInfluencerReviewsByProduct,
+            getInfluencerReviewSummary
+          );
+
+          // Rich Card 데이터 추가
+          setRichCards(cards);
+          const richCardsMessage: SearchMessage = {
+            type: 'rich-cards' as const,
+            cards: cards,
+            timestamp: new Date().toISOString()
+          };
+          setSearchResults(prev => [...prev, richCardsMessage]);
+        }
+      }
+
+      setIsSearching(false);
+    } catch (error: any) {
+      console.error('Search error:', error);
+      setIsTyping(false);
+      setIsSearching(false);
+
+      if (error.name === 'AbortError') {
+        // Request was cancelled
+        toast.info('검색이 취소되었습니다.');
+        return;
+      }
+
+      // Determine error type and show appropriate message
+      let errorMessage = 'AI 응답을 불러오는 중 문제가 발생했습니다.';
+      let suggestions = ['잠시 후 다시 시도해보세요', '인터넷 연결을 확인해주세요', '검색어를 바꿔서 시도해보세요'];
+
+      if (error.message.includes('API error: 429')) {
+        errorMessage = '요청이 너무 많습니다. 잠시만 기다려주세요.';
+        suggestions = [
+          '1-2분 후 다시 시도해주세요',
+          '동시에 너무 많은 검색을 하지 마세요',
+          '다른 검색어로 시도해보세요'
+        ];
+        toast.error('요청 한도 초과');
+      } else if (error.message.includes('API error: 401')) {
+        errorMessage = 'AI 서비스 인증에 문제가 있습니다.';
+        suggestions = [
+          '페이지를 새로고침 해보세요',
+          '로그인 상태를 확인해주세요',
+          '문제가 계속되면 고객센터에 문의하세요'
+        ];
+        toast.error('인증 오류');
+      } else if (error.message.includes('API error: 500') || error.message.includes('API error: 503')) {
+        errorMessage = '서버에 일시적인 문제가 발생했습니다.';
+        suggestions = [
+          '잠시 후 다시 시도해주세요',
+          '서버가 점검 중일 수 있습니다',
+          '문제가 지속되면 고객센터에 알려주세요'
+        ];
+        toast.error('서버 오류');
+      } else if (error.message.includes('Failed to fetch') || error.message === 'Network request failed') {
+        errorMessage = '인터넷 연결이 불안정합니다.';
+        suggestions = [
+          'Wi-Fi 또는 데이터 연결을 확인하세요',
+          '네트워크가 안정적인 곳으로 이동하세요',
+          '페이지를 새로고침 해보세요'
+        ];
+        toast.error('네트워크 오류');
+      } else {
+        toast.error('검색 오류 발생');
+      }
+
+      setErrorState({ message: errorMessage, suggestions });
     }
-  };
+  }, [searchQuery, searchMode, addSearch, userId]);
 
   // 상태 초기화 함수
   const resetConversation = useCallback(() => {
@@ -360,7 +369,7 @@ export default function Home() {
       setErrorState(null);
       handleSearch({ preventDefault: () => {} } as React.FormEvent, lastQuery);
     }
-  }, [lastQuery]);
+  }, [lastQuery, handleSearch]);
 
   const handleModeBasedSearch = useCallback(async () => {
     const exampleQuery = searchMode === 'price'
@@ -371,19 +380,19 @@ export default function Home() {
 
     // Trigger search with example query
     handleSearch({ preventDefault: () => {} } as React.FormEvent, exampleQuery);
-  }, [searchMode, resetConversation]);
+  }, [searchMode, resetConversation, handleSearch]);
 
   const handleExamplePrompt = useCallback((prompt: string) => {
     setSearchQuery(prompt);
     // Don't clear results - continue conversation
     handleSearch({ preventDefault: () => {} } as React.FormEvent, prompt);
-  }, []);
+  }, [handleSearch]);
 
   const handleTrendingSearch = useCallback((query: string) => {
     resetConversation();
     setSearchQuery(query);
     handleSearch({ preventDefault: () => {} } as React.FormEvent, query);
-  }, [resetConversation]);
+  }, [resetConversation, handleSearch]);
 
   const handleRecentSearchClick = useCallback((query: string) => {
     if (!showResults) {
@@ -392,7 +401,7 @@ export default function Home() {
     }
     setSearchQuery(query);
     handleSearch({ preventDefault: () => {} } as React.FormEvent, query);
-  }, [showResults, resetConversation]);
+  }, [showResults, resetConversation, handleSearch]);
 
   return (
     <div className={`flex flex-col min-h-screen transition-colors duration-700 ${
