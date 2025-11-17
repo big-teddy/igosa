@@ -235,17 +235,19 @@ export function ExperimentVariant({
 }
 
 // Variant components
-ExperimentVariant.Control = function Control({ children }: { children: React.ReactNode }) {
+const ControlComponent = function Control({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 };
-ExperimentVariant.Control.displayName = 'ExperimentVariant.control';
+ControlComponent.displayName = 'ExperimentVariant.control';
+ExperimentVariant.Control = ControlComponent as typeof ControlComponent & { displayName: string };
 
-ExperimentVariant.Test = function Test({ children }: { children: React.ReactNode }) {
+const TestComponent = function Test({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 };
-ExperimentVariant.Test.displayName = 'ExperimentVariant.test';
+TestComponent.displayName = 'ExperimentVariant.test';
+ExperimentVariant.Test = TestComponent as typeof TestComponent & { displayName: string };
 
-ExperimentVariant.Variant = function CustomVariant({
+const VariantComponent = function CustomVariant({
   name,
   children,
 }: {
@@ -254,4 +256,5 @@ ExperimentVariant.Variant = function CustomVariant({
 }) {
   return <>{children}</>;
 };
-ExperimentVariant.Variant.displayName = 'ExperimentVariant.custom';
+VariantComponent.displayName = 'ExperimentVariant.custom';
+ExperimentVariant.Variant = VariantComponent as typeof VariantComponent & { displayName: string };

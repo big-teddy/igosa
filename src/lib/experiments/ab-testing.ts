@@ -4,7 +4,7 @@
  * PostHog의 Feature Flags를 활용한 A/B 테스트 프레임워크
  */
 
-import { posthog } from '@/lib/monitoring/posthog';
+import posthog from '@/lib/monitoring/posthog';
 
 /**
  * Experiment variant type
@@ -147,7 +147,9 @@ class ABTestingService {
     if (typeof window === 'undefined') return {};
 
     try {
-      return posthog.getFeatureFlags() || {};
+      // TODO: PostHog SDK doesn't expose getFeatureFlags() in browser
+      // Return empty object for now
+      return {};
     } catch (error) {
       console.error('Error getting all flags:', error);
       return {};

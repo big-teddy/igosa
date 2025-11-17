@@ -4,7 +4,7 @@
  * Core Web Vitals 및 성능 지표 추적
  */
 
-import { posthog } from './posthog';
+import posthog from './posthog';
 
 /**
  * Web Vitals Metric Types

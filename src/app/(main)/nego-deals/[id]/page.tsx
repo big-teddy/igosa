@@ -14,6 +14,7 @@ import { negoDealService } from '@/lib/services/nego-deal-service';
 import { ShareDealToFeedDialog } from '@/components/nego-deals/ShareDealToFeedDialog';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { ChatButton } from '@/components/chat/ChatButton';
+import { SetTargetPriceWidget } from '@/components/price-tracking/SetTargetPriceWidget';
 import { toast } from 'sonner';
 import { analytics } from '@/lib/monitoring/posthog';
 import {
@@ -114,12 +115,12 @@ export default function NegoDealDetailPage() {
       negoDealService.joinDeal(deal, userId, userName);
 
       // Track deal participation
-      analytics.trackAddToCart(
-        deal.id,
-        deal.productName,
-        deal.targetPrice,
-        1
-      );
+      analytics.trackAddToCart({
+        id: deal.id,
+        name: deal.productName,
+        price: deal.targetPrice,
+        quantity: 1,
+      });
 
       // 참여 상태 업데이트
       setIsJoined(true);
@@ -564,6 +565,15 @@ export default function NegoDealDetailPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Price Tracking 2.0 Widget */}
+              <SetTargetPriceWidget
+                productId={deal.id}
+                productName={deal.productName}
+                currentPrice={deal.originalPrice}
+                minPrice={deal.targetPrice}
+                avgPrice={Math.floor((deal.originalPrice + deal.targetPrice) / 2)}
+              />
             </div>
           </div>
         </div>
