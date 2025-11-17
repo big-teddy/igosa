@@ -1,0 +1,44 @@
+name: Scheduled Tests
+
+on:
+  schedule:
+    # Run tests every day at 9 AM KST (00:00 UTC)
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  test:
+    name: Run Scheduled Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: scheduled
+          fail_ci_if_error: true
+
+      - name: Report test results
+        if: always()
+        run: |
+          echo "Scheduled tests completed at $(date)"
+          echo "View results: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
