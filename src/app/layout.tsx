@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { PostHogProvider } from "@/lib/monitoring/posthog";
+import { WebVitals } from "./web-vitals";
 
 export const metadata: Metadata = {
   title: "이거사 - AI 쇼핑 에이전트",
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="ko">
       <body className="font-sans antialiased">
         <PostHogProvider>
+          <WebVitals />
           {children}
           <Toaster position="top-center" richColors closeButton />
         </PostHogProvider>
