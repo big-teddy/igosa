@@ -38,6 +38,7 @@ import { getFriendPurchases, getSocialReviewsByProduct } from "@/lib/data/mock-s
 import { getInfluencerReviewsByProduct, getInfluencerReviewSummary } from "@/lib/data/mock-influencer";
 import { detectProductKeyword } from "@/lib/utils/keyword-matcher";
 import type { SearchMessage, ConversationMessage, ErrorState } from "@/types/search";
+import { analytics } from "@/lib/monitoring/posthog";
 
 // 실시간 트렌딩 검색어
 const TRENDING_SEARCHES = [
@@ -262,11 +263,13 @@ export default function Home() {
 
       // 제품 검색 키워드 감지 및 Rich Card 생성
       const detectedKeyword = detectProductKeyword(query);
+      let resultsCount = 0;
 
       if (detectedKeyword) {
         // 제품 검색 및 Rich Card 생성
         const products = searchProducts(detectedKeyword);
         if (products.length > 0) {
+          resultsCount = products.length;
           const cards = buildProductCards(
             products.slice(0, 3), // 최대 3개 제품
             userId,
@@ -287,6 +290,9 @@ export default function Home() {
           setSearchResults(prev => [...prev, richCardsMessage]);
         }
       }
+
+      // Track search event
+      analytics.trackSearch(query, resultsCount, searchMode);
 
       setIsSearching(false);
     } catch (error: any) {

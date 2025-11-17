@@ -15,6 +15,7 @@ import { ShareDealToFeedDialog } from '@/components/nego-deals/ShareDealToFeedDi
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { ChatButton } from '@/components/chat/ChatButton';
 import { toast } from 'sonner';
+import { analytics } from '@/lib/monitoring/posthog';
 import {
   Clock,
   Users,
@@ -50,6 +51,13 @@ export default function NegoDealDetailPage() {
         // 서비스에서 최신 데이터로 업데이트
         const updatedDeal = negoDealService.updateDealWithParticipants(foundDeal);
         setDeal(updatedDeal);
+
+        // Track nego deal view
+        analytics.trackProductView(
+          updatedDeal.id,
+          updatedDeal.productName,
+          updatedDeal.targetPrice
+        );
       }
     }
 
@@ -104,6 +112,14 @@ export default function NegoDealDetailPage() {
     try {
       // 딜에 참여
       negoDealService.joinDeal(deal, userId, userName);
+
+      // Track deal participation
+      analytics.trackAddToCart(
+        deal.id,
+        deal.productName,
+        deal.targetPrice,
+        1
+      );
 
       // 참여 상태 업데이트
       setIsJoined(true);

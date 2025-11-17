@@ -24,6 +24,7 @@ import {
 } from "@/lib/data/mock-influencer";
 import { RecommendationSection } from "@/components/recommendations/RecommendationSection";
 import { recommendationService } from "@/lib/services/recommendation-service";
+import { analytics } from "@/lib/monitoring/posthog";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -61,6 +62,10 @@ export default function ProductDetailPage() {
           category: foundProduct.category,
           brand: foundProduct.brand,
         });
+
+        // Track product view analytics
+        const lowestPrice = Math.min(...foundProduct.prices.map((p: any) => p.total));
+        analytics.trackProductView(foundProduct.id, foundProduct.name, lowestPrice);
       }
     }
   }, [params.id]);
