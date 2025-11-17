@@ -6,14 +6,15 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Bell, Check, TrendingDown } from 'lucide-react';
+import { Bell, Check, TrendingDown, Users, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import type { CreatePriceTrackingRequest, CreatePriceTrackingResponse, DemandAggregation } from '@/types/price-tracking';
 
 interface SetTargetPriceWidgetProps {
   productId: string;
@@ -33,6 +34,10 @@ export function SetTargetPriceWidget({
   // 초기값: 최저가 근처
   const [targetPrice, setTargetPrice] = useState(minPrice);
   const [isTracking, setIsTracking] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [trackingId, setTrackingId] = useState<string | null>(null);
+  const [similarUsersCount, setSimilarUsersCount] = useState<number>(0);
+  const [demandData, setDemandData] = useState<DemandAggregation | null>(null);
 
   // 가격 범위: 현재가의 -30% ~ +10%
   const priceMin = Math.floor(currentPrice * 0.7);
@@ -52,23 +57,111 @@ export function SetTargetPriceWidget({
 
   const probability = calculateProbability(targetPrice);
 
-  const handleSetPrice = () => {
-    // TODO: API 호출
-    // await fetch('/api/price-tracking/set-target', { ... })
+  // Load demand data on mount
+  useEffect(() => {
+    loadDemandData();
+  }, [productId]);
 
-    setIsTracking(true);
+  const loadDemandData = async () => {
+    try {
+      const response = await fetch(`/api/demand/${productId}`);
+      if (response.ok) {
+        const data: DemandAggregation = await response.json();
+        setDemandData(data);
+        setSimilarUsersCount(data.totalUsers);
+      }
+    } catch (error) {
+      console.error('Failed to load demand data:', error);
+    }
+  };
 
-    toast.success('가격 알림 설정 완료!', {
-      description: `₩${targetPrice.toLocaleString()} 이하로 떨어지면 알려드릴게요`,
-    });
+  const handleSetPrice = async () => {
+    setLoading(true);
 
-    // 수요 집계 시뮬레이션 (Mock)
-    setTimeout(() => {
-      const similarUsers = Math.floor(Math.random() * 500) + 100;
-      toast.info(`${similarUsers}명이 비슷한 가격을 원해요`, {
-        description: 'AI가 판매자와 협상 중입니다...',
+    try {
+      // Create price tracking request
+      const request: CreatePriceTrackingRequest = {
+        productId,
+        targetPrice,
+        maxAcceptableDelta: 3000,
+        notificationChannels: ['push'],
+      };
+
+      const response = await fetch('/api/price-tracking', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
       });
-    }, 2000);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create price tracking');
+      }
+
+      const data: CreatePriceTrackingResponse = await response.json();
+
+      setTrackingId(data.trackingId);
+      setIsTracking(true);
+      setSimilarUsersCount(data.similarUsersCount || 0);
+
+      toast.success('가격 알림 설정 완료!', {
+        description: `₩${targetPrice.toLocaleString()} 이하로 떨어지면 알려드릴게요`,
+      });
+
+      // Show similar users count
+      if (data.similarUsersCount && data.similarUsersCount > 0) {
+        setTimeout(() => {
+          toast.info(`${data.similarUsersCount}명이 비슷한 가격을 원해요`, {
+            description: 'AI가 판매자와 협상 중입니다...',
+          });
+        }, 1000);
+      }
+
+      // Reload demand data
+      await loadDemandData();
+    } catch (error: any) {
+      console.error('Error setting price:', error);
+      toast.error('가격 알림 설정 실패', {
+        description: error.message || '다시 시도해주세요',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelTracking = async () => {
+    if (!trackingId) {
+      setIsTracking(false);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/price-tracking/${trackingId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to cancel tracking');
+      }
+
+      setIsTracking(false);
+      setTrackingId(null);
+      toast.success('가격 알림이 취소되었습니다');
+
+      // Reload demand data
+      await loadDemandData();
+    } catch (error: any) {
+      console.error('Error canceling tracking:', error);
+      toast.error('알림 취소 실패', {
+        description: error.message || '다시 시도해주세요',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -178,9 +271,17 @@ export function SetTargetPriceWidget({
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => setIsTracking(false)}
+              onClick={handleCancelTracking}
+              disabled={loading}
             >
-              알림 취소
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  처리 중...
+                </>
+              ) : (
+                '알림 취소'
+              )}
             </Button>
           </div>
         ) : (
@@ -188,20 +289,38 @@ export function SetTargetPriceWidget({
             onClick={handleSetPrice}
             size="lg"
             className="w-full"
+            disabled={loading}
           >
-            <Bell className="h-4 w-4 mr-2" />
-            ₩{targetPrice.toLocaleString()} 가격 알림 받기
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                설정 중...
+              </>
+            ) : (
+              <>
+                <Bell className="h-4 w-4 mr-2" />
+                ₩{targetPrice.toLocaleString()} 가격 알림 받기
+              </>
+            )}
           </Button>
         )}
 
-        {/* 수요 정보 (Phase 2 preview) */}
-        <div className="pt-4 border-t">
-          <p className="text-xs text-muted-foreground text-center">
-            💡 현재 <span className="font-bold text-foreground">234명</span>이 비슷한 가격을 원해요
-            <br />
-            AI가 판매자와 협상 중입니다
-          </p>
-        </div>
+        {/* 수요 정보 (실시간) */}
+        {demandData && demandData.totalUsers > 0 && (
+          <div className="pt-4 border-t">
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <Users className="h-4 w-4 text-primary" />
+              <p className="text-muted-foreground">
+                현재 <span className="font-bold text-foreground">{demandData.totalUsers}명</span>이 이 제품을 추적 중
+              </p>
+            </div>
+            {demandData.peakDemandPrice > 0 && (
+              <p className="text-xs text-center text-muted-foreground mt-2">
+                💡 평균 희망가: ₩{demandData.avgTargetPrice.toLocaleString()}
+              </p>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
