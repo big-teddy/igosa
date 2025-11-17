@@ -131,3 +131,41 @@ export const DISCOUNT_OPTIONS = [
   { label: '30% 이상', value: 30 },
   { label: '50% 이상', value: 50 },
 ];
+
+// ===== 홈페이지 AI 대화 관련 타입 =====
+
+export type SearchMode = 'price' | 'recommend';
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface SearchMessage {
+  type: 'user-query' | 'ai-response' | 'rich-cards' | 'products';
+  content?: string;
+  timestamp: string;
+  cards?: any[]; // ProductRecommendationCard type from rich-card.ts
+  products?: ProductResult[];
+}
+
+export interface ProductResult {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  image: string;
+  seller: string;
+  rating?: number;
+  reviewCount?: number;
+}
+
+export interface ErrorState {
+  message: string;
+  suggestions: string[];
+}
+
+export interface ProductKeywordMapping {
+  keywords: string[];
+  searchTerm: string;
+}

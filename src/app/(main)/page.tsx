@@ -1,10 +1,10 @@
 "use client";
 /**
  * 이거사 홈페이지 - AI 쇼핑 에이전트
- * Updated: 2025-11-12 v3 - Pill Toggle UI 적용
+ * Updated: 2025-11-17 v4 - 성능 최적화 및 타입 안정성 개선
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
@@ -36,6 +36,8 @@ import { buildProductCards } from "@/lib/utils/card-builder";
 import { searchProducts } from "@/lib/data/mock-products";
 import { getFriendPurchases, getSocialReviewsByProduct } from "@/lib/data/mock-social";
 import { getInfluencerReviewsByProduct, getInfluencerReviewSummary } from "@/lib/data/mock-influencer";
+import { detectProductKeyword } from "@/lib/utils/keyword-matcher";
+import type { SearchMessage, ConversationMessage, ErrorState } from "@/types/search";
 
 // 실시간 트렌딩 검색어
 const TRENDING_SEARCHES = [
@@ -78,14 +80,14 @@ export default function Home() {
   const { searches: recentSearches, addSearch, removeSearch, clearAll: clearAllSearches } = useRecentSearches();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchMessage[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [displayPlaceholder, setDisplayPlaceholder] = useState("");
-  const [conversationMessages, setConversationMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  const [conversationMessages, setConversationMessages] = useState<ConversationMessage[]>([]);
   const [richCards, setRichCards] = useState<ProductCardType[]>([]);
-  const [errorState, setErrorState] = useState<{message: string, suggestions: string[]} | null>(null);
+  const [errorState, setErrorState] = useState<ErrorState | null>(null);
   const [lastQuery, setLastQuery] = useState<string>("");
   const resultsEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -121,10 +123,10 @@ export default function Home() {
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (resultsEndRef.current) {
+    if (resultsEndRef.current && showResults && (searchResults.length > 0 || isTyping)) {
       resultsEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
-  }, [searchResults, isTyping]);
+  }, [searchResults, isTyping, showResults]);
 
   // Focus input after results appear
   useEffect(() => {
@@ -145,8 +147,8 @@ export default function Home() {
       addSearch(query); // Add to recent searches
 
       // Add user message immediately
-      const userMessage = {
-        type: 'user-query',
+      const userMessage: SearchMessage = {
+        type: 'user-query' as const,
         content: query,
         timestamp: new Date().toISOString()
       };
@@ -197,14 +199,12 @@ export default function Home() {
         setIsTyping(false);
 
         // Add initial AI response placeholder
-        setSearchResults(prev => [
-          ...prev,
-          {
-            type: 'ai-response',
-            content: '',
-            timestamp: new Date().toISOString()
-          }
-        ]);
+        const aiMessagePlaceholder: SearchMessage = {
+          type: 'ai-response' as const,
+          content: '',
+          timestamp: new Date().toISOString()
+        };
+        setSearchResults(prev => [...prev, aiMessagePlaceholder]);
 
         while (true) {
           const { done, value } = await reader.read();
@@ -251,80 +251,30 @@ export default function Home() {
         ]);
 
         // 제품 검색 키워드 감지 및 Rich Card 생성
-        const productKeywords = [
-          '러닝화', '운동화', '신발',
-          '노트북', '맥북',
-          '이어폰', '에어팟', '버즈',
-          '스마트워치', '애플워치', '갤럭시워치',
-          '패딩', '다운재킷', '겨울옷',
-          '공기청정기', '청정기',
-          '스피커', '블루투스',
-          '키보드', '기계식',
-          '마우스',
-          '백팩', '가방',
-          '텀블러', '물통',
-          '면도기', '전기면도기',
-          '청소기', '로봇청소기'
-        ];
+        const detectedKeyword = detectProductKeyword(query);
 
-        const hasProductQuery = productKeywords.some(keyword => query.includes(keyword));
+        if (detectedKeyword) {
+          // 제품 검색 및 Rich Card 생성
+          const products = searchProducts(detectedKeyword);
+          if (products.length > 0) {
+            const cards = buildProductCards(
+              products.slice(0, 3), // 최대 3개 제품
+              userId,
+              searchMode,
+              getFriendPurchases,
+              getSocialReviewsByProduct,
+              getInfluencerReviewsByProduct,
+              getInfluencerReviewSummary
+            );
 
-        if (hasProductQuery) {
-          // 검색어 추출
-          let searchQuery = '';
-          if (query.includes('러닝화') || query.includes('운동화') || query.includes('신발')) {
-            searchQuery = '러닝화';
-          } else if (query.includes('노트북') || query.includes('맥북')) {
-            searchQuery = '노트북';
-          } else if (query.includes('이어폰') || query.includes('에어팟') || query.includes('버즈')) {
-            searchQuery = '이어폰';
-          } else if (query.includes('스마트워치') || query.includes('애플워치') || query.includes('갤럭시워치')) {
-            searchQuery = '스마트워치';
-          } else if (query.includes('패딩') || query.includes('다운재킷') || query.includes('겨울옷')) {
-            searchQuery = '패딩';
-          } else if (query.includes('공기청정기') || query.includes('청정기')) {
-            searchQuery = '공기청정기';
-          } else if (query.includes('스피커') || query.includes('블루투스')) {
-            searchQuery = '스피커';
-          } else if (query.includes('키보드') || query.includes('기계식')) {
-            searchQuery = '키보드';
-          } else if (query.includes('마우스')) {
-            searchQuery = '마우스';
-          } else if (query.includes('백팩') || query.includes('가방')) {
-            searchQuery = '가방';
-          } else if (query.includes('텀블러') || query.includes('물통')) {
-            searchQuery = '텀블러';
-          } else if (query.includes('면도기') || query.includes('전기면도기')) {
-            searchQuery = '면도기';
-          } else if (query.includes('청소기') || query.includes('로봇청소기')) {
-            searchQuery = '청소기';
-          }
-
-          if (searchQuery) {
-            // 제품 검색 및 Rich Card 생성
-            const products = searchProducts(searchQuery);
-            if (products.length > 0) {
-              const cards = buildProductCards(
-                products.slice(0, 3), // 최대 3개 제품
-                userId,
-                searchMode,
-                getFriendPurchases,
-                getSocialReviewsByProduct,
-                getInfluencerReviewsByProduct,
-                getInfluencerReviewSummary
-              );
-
-              // Rich Card 데이터 추가
-              setRichCards(cards);
-              setSearchResults(prev => [
-                ...prev,
-                {
-                  type: 'rich-cards',
-                  cards: cards,
-                  timestamp: new Date().toISOString()
-                }
-              ]);
-            }
+            // Rich Card 데이터 추가
+            setRichCards(cards);
+            const richCardsMessage: SearchMessage = {
+              type: 'rich-cards' as const,
+              cards: cards,
+              timestamp: new Date().toISOString()
+            };
+            setSearchResults(prev => [...prev, richCardsMessage]);
           }
         }
 
@@ -386,7 +336,7 @@ export default function Home() {
   };
 
   // 상태 초기화 함수
-  const resetConversation = () => {
+  const resetConversation = useCallback(() => {
     setSearchQuery("");
     setSearchResults([]);
     setConversationMessages([]);
@@ -402,17 +352,17 @@ export default function Home() {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-  };
+  }, []);
 
   // 에러 후 재시도 함수
-  const handleRetry = () => {
+  const handleRetry = useCallback(() => {
     if (lastQuery) {
       setErrorState(null);
       handleSearch({ preventDefault: () => {} } as React.FormEvent, lastQuery);
     }
-  };
+  }, [lastQuery]);
 
-  const handleModeBasedSearch = async () => {
+  const handleModeBasedSearch = useCallback(async () => {
     const exampleQuery = searchMode === 'price'
       ? '에어팟 프로 2세대 최저가 찾아줘'
       : '20만원대 노트북 추천해줘';
@@ -421,28 +371,28 @@ export default function Home() {
 
     // Trigger search with example query
     handleSearch({ preventDefault: () => {} } as React.FormEvent, exampleQuery);
-  };
+  }, [searchMode, resetConversation]);
 
-  const handleExamplePrompt = (prompt: string) => {
+  const handleExamplePrompt = useCallback((prompt: string) => {
     setSearchQuery(prompt);
     // Don't clear results - continue conversation
     handleSearch({ preventDefault: () => {} } as React.FormEvent, prompt);
-  };
+  }, []);
 
-  const handleTrendingSearch = (query: string) => {
+  const handleTrendingSearch = useCallback((query: string) => {
     resetConversation();
     setSearchQuery(query);
     handleSearch({ preventDefault: () => {} } as React.FormEvent, query);
-  };
+  }, [resetConversation]);
 
-  const handleRecentSearchClick = (query: string) => {
+  const handleRecentSearchClick = useCallback((query: string) => {
     if (!showResults) {
       // Start new conversation with recent search
       resetConversation();
     }
     setSearchQuery(query);
     handleSearch({ preventDefault: () => {} } as React.FormEvent, query);
-  };
+  }, [showResults, resetConversation]);
 
   return (
     <div className={`flex flex-col min-h-screen transition-colors duration-700 ${
