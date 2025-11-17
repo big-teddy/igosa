@@ -484,17 +484,6 @@ export default function Home() {
               >
                 AI가 도와주는 똑똑한 쇼핑
               </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-              >
-                <Badge variant="secondary" className="inline-flex items-center gap-2 px-4 py-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="text-sm font-medium">온라인</span>
-                </Badge>
-              </motion.div>
             </motion.div>
           )}
 

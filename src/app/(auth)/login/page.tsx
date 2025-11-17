@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { ShoppingCart, Mail, Lock, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,7 +29,10 @@ export default function LoginPage() {
           email,
           name: email.split('@')[0],
         }));
-        router.push('/');
+
+        // redirect 파라미터가 있으면 그쪽으로, 없으면 홈으로
+        const redirect = searchParams.get('redirect');
+        router.push(redirect || '/');
       } else {
         setError("이메일과 비밀번호를 입력해주세요.");
       }
