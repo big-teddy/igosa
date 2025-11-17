@@ -8,6 +8,8 @@
 
 import { Redis as UpstashRedis } from '@upstash/redis';
 import Redis from 'ioredis';
+import { logger } from '@/lib/logger';
+import { RedisError } from '@/lib/errors/api-error';
 
 // Unified Redis interface
 export interface RedisClient {
@@ -102,35 +104,65 @@ export function getRedisClient(): RedisClient {
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (upstashUrl && upstashToken) {
-    console.log('🔴 Using Upstash Redis (REST API)');
-    upstashClient = new UpstashRedis({
-      url: upstashUrl,
-      token: upstashToken,
-    });
-    clientType = 'upstash';
-    return upstashClient as any;
+    logger.info('Using Upstash Redis (REST API)', { provider: 'upstash' });
+    try {
+      upstashClient = new UpstashRedis({
+        url: upstashUrl,
+        token: upstashToken,
+      });
+      clientType = 'upstash';
+      return upstashClient as any;
+    } catch (error) {
+      logger.error('Failed to initialize Upstash Redis', error as Error);
+      throw new RedisError('Failed to initialize Upstash Redis', error as Error);
+    }
   }
 
   // Check for Railway or standard Redis
   const railwayUrl = process.env.REDIS_URL;
 
   if (railwayUrl) {
-    console.log('🚂 Using Railway Redis (TCP)');
-    railwayClient = new Redis(railwayUrl, {
-      maxRetriesPerRequest: 3,
-      enableReadyCheck: true,
-      retryStrategy: (times) => {
-        if (times > 3) return null; // Stop retrying after 3 attempts
-        return Math.min(times * 50, 2000); // Exponential backoff
-      },
-    });
-    clientType = 'railway';
-    return new RailwayRedisAdapter(railwayClient);
+    logger.info('Using Railway Redis (TCP)', { provider: 'railway' });
+    try {
+      railwayClient = new Redis(railwayUrl, {
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: true,
+        retryStrategy: (times) => {
+          if (times > 3) {
+            logger.warn('Redis retry limit exceeded', { attempts: times });
+            return null;
+          }
+          const delay = Math.min(times * 50, 2000);
+          logger.debug('Retrying Redis connection', { attempt: times, delay });
+          return delay;
+        },
+      });
+
+      // Handle connection errors
+      railwayClient.on('error', (error) => {
+        logger.error('Redis connection error', error);
+      });
+
+      railwayClient.on('connect', () => {
+        logger.info('Redis connected successfully');
+      });
+
+      railwayClient.on('ready', () => {
+        logger.debug('Redis ready to accept commands');
+      });
+
+      clientType = 'railway';
+      return new RailwayRedisAdapter(railwayClient);
+    } catch (error) {
+      logger.error('Failed to initialize Railway Redis', error as Error);
+      throw new RedisError('Failed to initialize Railway Redis', error as Error);
+    }
   }
 
   // No Redis configured - use mock
-  console.warn('⚠️  No Redis configured. Using mock client.');
-  console.warn('   Set REDIS_URL (Railway) or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (Upstash)');
+  logger.warn('No Redis configured. Using mock client.', {
+    suggestion: 'Set REDIS_URL (Railway) or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (Upstash)',
+  });
   clientType = 'mock';
   return mockClient;
 }
