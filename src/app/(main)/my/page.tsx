@@ -21,6 +21,7 @@ import { mockProducts, Product } from "@/lib/data/mock-products";
 import { mockNegoDeals, getNegoDealById, NegoDeal } from "@/lib/data/mock-nego-deals";
 import { getUserOrders, Order } from "@/lib/data/mock-orders";
 import type { DashboardStats, ReferralDashboardStats } from "@/types/dashboard";
+import type { PriceTracking } from "@/types/price-tracking";
 import {
   User,
   Package,
@@ -35,6 +36,7 @@ import {
   Home,
   BarChart3,
   DollarSign,
+  Bell,
 } from "lucide-react";
 
 export default function MyPage() {
@@ -47,6 +49,7 @@ export default function MyPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [referralStats, setReferralStats] = useState<ReferralDashboardStats | null>(null);
+  const [priceTrackings, setPriceTrackings] = useState<PriceTracking[]>([]);
 
   useEffect(() => {
     // 로그인 확인
@@ -75,7 +78,22 @@ export default function MyPage() {
     // 레퍼럴 통계 로드
     const refStats = dashboardService.getReferralDashboardStats(uid);
     setReferralStats(refStats);
+
+    // 가격 추적 데이터 로드
+    fetchPriceTrackings();
   }, [router]);
+
+  const fetchPriceTrackings = async () => {
+    try {
+      const response = await fetch('/api/price-tracking');
+      if (response.ok) {
+        const data = await response.json();
+        setPriceTrackings(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch price trackings:', error);
+    }
+  };
 
   const handleToggleWishlist = (productId: string) => {
     toggleWishlist(productId);
@@ -94,11 +112,13 @@ export default function MyPage() {
     .map(id => getNegoDealById(id))
     .filter(d => d !== undefined) as NegoDeal[];
 
+  const activePriceTrackings = priceTrackings.filter(t => t.status === 'active').length;
+
   const stats = [
+    { label: '가격 알림', value: activePriceTrackings, icon: Bell, color: 'text-orange-600' },
     { label: '참여 중인 네고딜', value: participatedDeals.length, icon: TrendingDown, color: 'text-blue-600' },
     { label: '전체 주문', value: orders.length, icon: Package, color: 'text-green-600' },
     { label: '찜한 제품', value: wishlistProducts.length, icon: Heart, color: 'text-red-600' },
-    { label: '최근 본 제품', value: recentlyViewedProducts.length, icon: Clock, color: 'text-purple-600' },
   ];
 
   return (
@@ -156,7 +176,7 @@ export default function MyPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="dashboard">
               <BarChart3 className="h-4 w-4 mr-2" />
               대시보드
@@ -164,6 +184,10 @@ export default function MyPage() {
             <TabsTrigger value="referral">
               <DollarSign className="h-4 w-4 mr-2" />
               레퍼럴
+            </TabsTrigger>
+            <TabsTrigger value="price-tracking">
+              <Bell className="h-4 w-4 mr-2" />
+              가격 알림
             </TabsTrigger>
             <TabsTrigger value="participated">
               <TrendingDown className="h-4 w-4 mr-2" />
@@ -191,6 +215,133 @@ export default function MyPage() {
           {/* Referral Dashboard Tab */}
           <TabsContent value="referral" className="space-y-4">
             {referralStats && <ReferralDashboard stats={referralStats} />}
+          </TabsContent>
+
+          {/* Price Tracking Tab - NegoDeal 2.0 */}
+          <TabsContent value="price-tracking" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>가격 알림 설정</CardTitle>
+                <CardDescription>
+                  설정한 가격에 도달하면 알림을 받을 수 있습니다
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {priceTrackings.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Bell className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground mb-4">
+                      설정된 가격 알림이 없습니다
+                    </p>
+                    <Link href="/products">
+                      <Button>
+                        제품 둘러보기
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {priceTrackings.map((tracking) => {
+                      const savingsPercent = ((tracking.currentPrice - tracking.targetPrice) / tracking.currentPrice * 100).toFixed(1);
+                      return (
+                        <div key={tracking.id} className="p-4 border rounded-lg hover:border-primary transition-colors">
+                          <div className="flex gap-4">
+                            {tracking.productImage && (
+                              <div className="w-24 h-24 bg-muted rounded overflow-hidden flex-shrink-0">
+                                <img
+                                  src={tracking.productImage}
+                                  alt={tracking.productName}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <h3 className="font-semibold line-clamp-1 mb-2">
+                                    {tracking.productName}
+                                  </h3>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Badge
+                                      variant={tracking.status === 'active' ? 'default' : 'secondary'}
+                                      className={tracking.status === 'triggered' ? 'bg-green-600 text-white' : ''}
+                                    >
+                                      {tracking.status === 'active' && '추적 중'}
+                                      {tracking.status === 'triggered' && '목표 달성!'}
+                                      {tracking.status === 'paused' && '일시 중지'}
+                                      {tracking.status === 'expired' && '만료됨'}
+                                      {tracking.status === 'cancelled' && '취소됨'}
+                                    </Badge>
+                                    {tracking.similarUsersCount && tracking.similarUsersCount > 0 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        <Users className="h-3 w-3 mr-1" />
+                                        {tracking.similarUsersCount}명 추적 중
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm text-muted-foreground">현재</p>
+                                  <p className="text-lg font-bold">
+                                    ₩{tracking.currentPrice.toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg text-sm">
+                                <div>
+                                  <p className="text-muted-foreground mb-1">희망 가격</p>
+                                  <p className="font-bold text-primary">
+                                    ₩{tracking.targetPrice.toLocaleString()}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground mb-1">예상 절감</p>
+                                  <p className="font-bold text-green-600">
+                                    ₩{(tracking.currentPrice - tracking.targetPrice).toLocaleString()} ({savingsPercent}%)
+                                  </p>
+                                </div>
+                              </div>
+                              {tracking.estimatedProbability && (
+                                <div className="mt-2 text-xs text-muted-foreground">
+                                  <span>30일 내 달성 확률: </span>
+                                  <span className="font-semibold">{(tracking.estimatedProbability * 100).toFixed(0)}%</span>
+                                </div>
+                              )}
+                              <div className="mt-3 flex gap-2">
+                                <Link href={`/products/${tracking.productId}`}>
+                                  <Button size="sm" variant="outline">
+                                    제품 보기
+                                  </Button>
+                                </Link>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={async () => {
+                                    try {
+                                      const response = await fetch(`/api/price-tracking/${tracking.id}`, {
+                                        method: 'DELETE',
+                                      });
+                                      if (response.ok) {
+                                        await fetchPriceTrackings();
+                                      }
+                                    } catch (error) {
+                                      console.error('Failed to delete tracking:', error);
+                                    }
+                                  }}
+                                >
+                                  알림 취소
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Participated Deals */}
