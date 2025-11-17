@@ -68,7 +68,7 @@ function validateEnv(): Env {
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error('❌ Invalid environment variables:');
-      console.error(JSON.stringify(error.errors, null, 2));
+      console.error(JSON.stringify(error.issues, null, 2));
 
       // 개발 환경에서는 경고만 표시
       if (process.env.NODE_ENV === 'development') {
