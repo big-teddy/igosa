@@ -24,12 +24,11 @@ describe('PaymentService', () => {
     const mockCartItem: Omit<CartItem, 'id'> = {
       productId: 'prod-1',
       dealId: 'deal-1',
-      name: '에어팟 프로 2세대',
+      productName: '에어팟 프로 2세대',
       price: 359000,
       originalPrice: 399000,
-      platform: '쿠팡',
       quantity: 1,
-      imageUrl: 'https://example.com/image.jpg',
+      productImage: 'https://example.com/image.jpg',
     };
 
     it('should add item to cart', () => {
@@ -117,14 +116,14 @@ describe('PaymentService', () => {
     const mockCheckoutData: CheckoutData = {
       items: [
         {
+          id: 'item-1',
           productId: 'prod-1',
           dealId: 'deal-1',
-          name: '에어팟 프로 2세대',
+          productName: '에어팟 프로 2세대',
           price: 359000,
           originalPrice: 399000,
-          platform: '쿠팡',
           quantity: 1,
-          imageUrl: 'https://example.com/image.jpg',
+          productImage: 'https://example.com/image.jpg',
         },
       ],
       shippingAddress: {
@@ -271,7 +270,9 @@ describe('PaymentService', () => {
     it('should delete shipping address', () => {
       const address = paymentService.addShippingAddress(testUserId, mockAddress);
 
-      paymentService.deleteShippingAddress(testUserId, address.id);
+      if (address.id) {
+        paymentService.deleteShippingAddress(testUserId, address.id);
+      }
 
       const addresses = paymentService.getShippingAddresses(testUserId);
       expect(addresses).toHaveLength(0);
