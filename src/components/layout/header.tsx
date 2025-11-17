@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut, Package, Users, Menu, Sparkles } from "lucide-react";
+import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut, Package, Users, Menu, Sparkles, Bell } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const navItems = [
   { href: "/feed", icon: Users, label: "친구 피드" },
   { href: "/nego-deals", icon: TrendingDown, label: "공동구매" },
   { href: "/products", icon: Package, label: "제품 둘러보기" },
+  { href: "/price-alerts", icon: Bell, label: "가격 알림" },
 ];
 
 export function Header() {
@@ -41,9 +43,12 @@ export function Header() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-6">
-            <Link
-              href="/"
-              className="flex items-center gap-2 group"
+            <button
+              onClick={() => {
+                // Force full page reload to reset all state
+                window.location.href = '/';
+              }}
+              className="flex items-center gap-2 group cursor-pointer"
               aria-label="이거사 홈페이지로 이동"
             >
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shrink-0">
@@ -52,7 +57,7 @@ export function Header() {
               <span className="font-bold text-xl group-hover:text-primary transition-colors duration-200 whitespace-nowrap">
                 이거사
               </span>
-            </Link>
+            </button>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1" role="navigation" aria-label="주요 메뉴">
@@ -87,6 +92,9 @@ export function Header() {
           <div className="flex items-center gap-2">
             {user ? (
               <>
+                {/* Notification Bell */}
+                <NotificationBell userId={user.id} />
+
                 {/* Desktop User Menu */}
                 <div className="hidden md:flex items-center gap-2">
                   <Link href="/my">

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"] });
+import { Toaster } from "sonner";
+import { PostHogProvider } from "@/lib/monitoring/posthog";
+import { WebVitals } from "./web-vitals";
 
 export const metadata: Metadata = {
   title: "이거사 - AI 쇼핑 에이전트",
@@ -16,7 +16,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={inter.className}>{children}</body>
+      <body className="font-sans antialiased">
+        <PostHogProvider>
+          <WebVitals />
+          {children}
+          <Toaster position="top-center" richColors closeButton />
+        </PostHogProvider>
+      </body>
     </html>
   );
 }

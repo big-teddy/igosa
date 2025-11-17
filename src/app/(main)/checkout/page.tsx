@@ -21,6 +21,7 @@ import {
   Check
 } from "lucide-react";
 import Link from "next/link";
+import { analytics } from "@/lib/monitoring/posthog";
 
 type PaymentMethod = '카드' | '계좌이체' | '휴대폰' | '토스페이';
 
@@ -72,6 +73,17 @@ function CheckoutContent() {
 
     setLoading(true);
     setError("");
+
+    // Track checkout started event
+    analytics.trackCheckoutStarted(
+      [{
+        id: deal.id || dealId || 'unknown',
+        name: deal.productName,
+        price: deal.targetPrice,
+        quantity: 1
+      }],
+      deal.targetPrice
+    );
 
     try {
       const tossPayments = await loadTossPayments(

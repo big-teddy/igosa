@@ -6,11 +6,17 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   getSocialActivityFeed,
   SocialActivity,
   getFriends,
 } from "@/lib/data/mock-social";
+import { FeedPost } from "@/components/social/FeedPost";
+import { ReferralDashboard } from "@/components/social/ReferralDashboard";
+import { FeedPost as FeedPostType } from "@/types/social-feed";
+import { referralService } from "@/lib/services/referral-service";
+import { socialFeedService } from "@/lib/services/social-feed-service";
 import {
   Heart,
   MessageCircle,
@@ -20,13 +26,22 @@ import {
   TrendingUp,
   Home,
   Users,
+  DollarSign,
+  Filter,
 } from "lucide-react";
 
 export default function FeedPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [userId, setUserId] = useState<string>('');
   const [activities, setActivities] = useState<SocialActivity[]>([]);
+  const [posts, setPosts] = useState<FeedPostType[]>([]);
   const [friendsCount, setFriendsCount] = useState(0);
+  const [filter, setFilter] = useState<'all' | 'purchase' | 'review' | 'recommendation'>('all');
+
+  // Referral stats
+  const [referralStats, setReferralStats] = useState<any>(null);
+  const [userLevel, setUserLevel] = useState<any>(null);
 
   useEffect(() => {
     // 로그인 확인
@@ -38,18 +53,60 @@ export default function FeedPage() {
 
     const userData = JSON.parse(storedUser);
     setUser(userData);
+    const uid = userData.email || userData.id || 'user-1';
+    setUserId(uid);
 
-    // 친구들의 활동 피드 로드
+    // 친구들의 활동 피드 로드 (mock data)
     const feed = getSocialActivityFeed('user-1');
     setActivities(feed);
 
+    // 실제 포스트 로드
+    const realPosts = socialFeedService.getPosts();
+    setPosts(realPosts);
+
     const friends = getFriends('user-1');
     setFriendsCount(friends.length);
+
+    // Load referral stats
+    const stats = referralService.getUserStats(uid);
+    const level = referralService.getUserLevel(uid);
+    setReferralStats(stats);
+    setUserLevel(level);
   }, [router]);
 
   if (!user) {
     return null;
   }
+
+  // Convert SocialActivity to FeedPost
+  const convertToFeedPost = (activity: SocialActivity): FeedPostType => {
+    return {
+      id: activity.id,
+      userId: activity.userId,
+      userName: activity.userName,
+      userAvatar: activity.userAvatar,
+      type: activity.type as FeedPostType['type'],
+      productId: activity.productId,
+      productName: activity.productName,
+      productImage: activity.productImage,
+      content: activity.content,
+      rating: activity.rating,
+      timestamp: activity.timestamp,
+      likesCount: activity.likesCount,
+      commentsCount: activity.commentsCount,
+    };
+  };
+
+  // Combine real posts with mock activities
+  const allFeedItems = [
+    ...posts,
+    ...activities.map(convertToFeedPost),
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  const filteredFeedItems = allFeedItems.filter((item) => {
+    if (filter === 'all') return true;
+    return item.type === filter;
+  });
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -96,12 +153,18 @@ export default function FeedPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-background">
-        <div className="container max-w-4xl mx-auto py-6 px-4">
+        <div className="container max-w-6xl mx-auto py-6 px-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-1">친구 피드</h1>
+              <h1 className="text-3xl font-bold mb-1 flex items-center gap-2">
+                친구 피드
+                <Badge variant="outline" className="gap-1">
+                  <DollarSign className="h-3 w-3" />
+                  <span className="text-xs">추천 수익</span>
+                </Badge>
+              </h1>
               <p className="text-muted-foreground">
-                친구들의 최신 구매와 추천을 확인하세요
+                친구들의 추천으로 구매하고, 내 추천으로 수익을 받으세요
               </p>
             </div>
             <div className="flex gap-2">
@@ -122,120 +185,121 @@ export default function FeedPage() {
         </div>
       </div>
 
-      <div className="container max-w-4xl mx-auto py-8 px-4">
-        {activities.length === 0 ? (
-          <Card>
-            <CardContent className="py-20 text-center">
-              <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-bold mb-2">아직 활동이 없습니다</h3>
-              <p className="text-muted-foreground mb-6">
-                친구를 추가하고 그들의 구매와 추천을 확인해보세요!
-              </p>
-              <Link href="/friends">
-                <Button>
-                  <Users className="h-4 w-4 mr-2" />
-                  친구 찾기
+      <div className="container max-w-6xl mx-auto py-8 px-4">
+        <Tabs defaultValue="feed" className="w-full">
+          <TabsList className="grid w-full md:w-[400px] grid-cols-2 mb-6">
+            <TabsTrigger value="feed" className="gap-2">
+              <Users className="h-4 w-4" />
+              친구 피드
+            </TabsTrigger>
+            <TabsTrigger value="earnings" className="gap-2">
+              <DollarSign className="h-4 w-4" />
+              내 수익
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Feed Tab */}
+          <TabsContent value="feed" className="space-y-6">
+            {/* Filter Buttons */}
+            <div className="flex items-center gap-2 mb-6">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <div className="flex gap-2">
+                <Button
+                  variant={filter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setFilter('all')}
+                >
+                  전체
                 </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {activities.map((activity) => (
-              <Card key={activity.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  {/* User Info */}
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
-                      {activity.userAvatar ? (
-                        <img src={activity.userAvatar} alt={activity.userName} className="w-full h-full" />
-                      ) : (
-                        <Users className="h-5 w-5 text-primary" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold">{activity.userName}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {getActivityLabel(activity.type)}
-                        </span>
-                        {getActivityIcon(activity.type)}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {formatTimeAgo(activity.timestamp)}
-                      </p>
-                    </div>
-                  </div>
+                <Button
+                  variant={filter === 'purchase' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setFilter('purchase')}
+                  className="gap-1"
+                >
+                  <ShoppingBag className="h-3 w-3" />
+                  구매
+                </Button>
+                <Button
+                  variant={filter === 'review' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setFilter('review')}
+                  className="gap-1"
+                >
+                  <Star className="h-3 w-3" />
+                  리뷰
+                </Button>
+                <Button
+                  variant={filter === 'recommendation' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setFilter('recommendation')}
+                  className="gap-1"
+                >
+                  <TrendingUp className="h-3 w-3" />
+                  추천
+                </Button>
+              </div>
+            </div>
 
-                  {/* Product Info */}
-                  <Link href={`/products/${activity.productId}`}>
-                    <div className="flex gap-4 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                      <div className="w-20 h-20 bg-muted rounded overflow-hidden flex-shrink-0">
-                        <img
-                          src={activity.productImage}
-                          alt={activity.productName}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold line-clamp-2 mb-2">
-                          {activity.productName}
-                        </h4>
-                        {activity.rating && (
-                          <div className="flex items-center gap-1 mb-2">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`h-4 w-4 ${
-                                  i < activity.rating!
-                                    ? 'fill-yellow-400 text-yellow-400'
-                                    : 'text-muted-foreground'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+            {filteredFeedItems.length === 0 ? (
+              <Card>
+                <CardContent className="py-20 text-center">
+                  <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-xl font-bold mb-2">아직 활동이 없습니다</h3>
+                  <p className="text-muted-foreground mb-6">
+                    친구를 추가하고 그들의 구매와 추천을 확인해보세요!
+                  </p>
+                  <Link href="/friends">
+                    <Button>
+                      <Users className="h-4 w-4 mr-2" />
+                      친구 찾기
+                    </Button>
                   </Link>
-
-                  {/* Content */}
-                  {activity.content && (
-                    <p className="mt-4 text-muted-foreground">
-                      "{activity.content}"
-                    </p>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-6 mt-4 pt-4 border-t">
-                    <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                      <Heart className="h-4 w-4" />
-                      <span>{activity.likesCount}</span>
-                    </button>
-                    <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                      <MessageCircle className="h-4 w-4" />
-                      <span>{activity.commentsCount}</span>
-                    </button>
-                    <Link href={`/products/${activity.productId}`}>
-                      <button className="text-sm text-primary hover:underline">
-                        제품 보기
-                      </button>
-                    </Link>
-                  </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        )}
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredFeedItems.map((post) => (
+                  <FeedPost
+                    key={post.id}
+                    post={post}
+                    currentUserId={userId}
+                  />
+                ))}
+              </div>
+            )}
 
-        {/* Load More */}
-        {activities.length > 0 && (
-          <div className="text-center mt-8">
-            <Button variant="outline">
-              더 보기
-            </Button>
-          </div>
-        )}
+            {/* Load More */}
+            {filteredFeedItems.length > 0 && (
+              <div className="text-center mt-8">
+                <Button variant="outline">더 보기</Button>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Earnings Tab */}
+          <TabsContent value="earnings">
+            {referralStats && userLevel ? (
+              <ReferralDashboard stats={referralStats} level={userLevel} />
+            ) : (
+              <Card>
+                <CardContent className="py-20 text-center">
+                  <DollarSign className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-xl font-bold mb-2">아직 수익이 없습니다</h3>
+                  <p className="text-muted-foreground mb-6">
+                    친구들에게 좋은 제품을 추천하고 수익을 받아보세요!
+                  </p>
+                  <Link href="/">
+                    <Button>
+                      <ShoppingBag className="h-4 w-4 mr-2" />
+                      제품 둘러보기
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Home, Package } from "lucide-react";
+import { analytics } from "@/lib/monitoring/posthog";
 
 export const dynamic = 'force-dynamic';
 
@@ -20,13 +21,27 @@ function PaymentSuccessContent() {
 
   useEffect(() => {
     if (orderId && amount) {
+      const amountNum = parseInt(amount);
+
       // 실제로는 서버에서 결제 승인 API 호출
       setOrderInfo({
         orderId,
-        amount: parseInt(amount),
+        amount: amountNum,
         paymentKey,
         orderDate: new Date().toLocaleDateString('ko-KR'),
       });
+
+      // Track purchase completion
+      analytics.trackPurchase(
+        orderId,
+        amountNum,
+        [{
+          id: orderId,
+          name: 'NegoDeal Item',
+          price: amountNum,
+          quantity: 1
+        }]
+      );
     }
   }, [orderId, amount, paymentKey]);
 

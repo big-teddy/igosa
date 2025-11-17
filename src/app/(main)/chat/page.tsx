@@ -19,15 +19,36 @@ import {
   MessageCircle,
   Bookmark,
   BookmarkCheck,
-  Settings2
+  Settings2,
+  DollarSign
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ProductCard } from "@/components/products/product-card";
 import { searchProducts } from "@/lib/data/mock-products";
+import { useModeStore } from "@/lib/stores/mode-store";
+import { toast } from "sonner";
+import { ProductRecommendationCard } from "@/components/rich-cards/ProductRecommendationCard";
+import { buildProductCards } from "@/lib/utils/card-builder";
+import { getFriendPurchases, getSocialReviewsByProduct } from "@/lib/data/mock-social";
+import { getInfluencerReviewsByProduct, getInfluencerReviewSummary } from "@/lib/data/mock-influencer";
 
 // Helper function to extract product names from text
 function extractProductNames(text: string): string[] {
-  const productKeywords = ['러닝화', '운동화', '노트북', '맥북', '이어폰', '에어팟', '스마트워치', '애플워치'];
+  const productKeywords = [
+    '러닝화', '운동화', '신발',
+    '노트북', '맥북',
+    '이어폰', '에어팟', '버즈',
+    '스마트워치', '애플워치', '갤럭시워치',
+    '패딩', '다운재킷',
+    '공기청정기', '청정기',
+    '스피커',
+    '키보드',
+    '마우스',
+    '백팩', '가방',
+    '텀블러',
+    '면도기',
+    '청소기', '로봇청소기'
+  ];
   return productKeywords.filter(keyword => text.includes(keyword));
 }
 
@@ -68,8 +89,13 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export default function ChatPage() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, reload } = useChat({
+  const { searchMode, setSearchMode } = useModeStore();
+  const userId = 'user-1'; // Mock user ID
+  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, reload, error } = useChat({
     api: "/api/chat",
+    body: {
+      mode: searchMode
+    },
     initialMessages: [
       {
         id: "welcome",
@@ -77,6 +103,22 @@ export default function ChatPage() {
         content: "안녕하세요! 이거사 AI 쇼핑 어시스턴트입니다. 어떤 제품을 찾고 계신가요?",
       },
     ],
+    onError: (error) => {
+      console.error('Chat error:', error);
+
+      // Show user-friendly error toast
+      if (error.message.includes('429')) {
+        toast.error('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
+      } else if (error.message.includes('401')) {
+        toast.error('API 인증에 실패했습니다.');
+      } else if (error.message.includes('500') || error.message.includes('503')) {
+        toast.error('서버에 일시적인 문제가 발생했습니다.');
+      } else if (error.message.includes('Failed to fetch')) {
+        toast.error('네트워크 연결을 확인해주세요.');
+      } else {
+        toast.error('메시지 전송 중 오류가 발생했습니다.');
+      }
+    },
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -136,7 +178,7 @@ export default function ChatPage() {
 
   const handleVoiceInput = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('음성 인식이 지원되지 않는 브라우저입니다.');
+      toast.error('음성 인식이 지원되지 않는 브라우저입니다.');
       return;
     }
 
@@ -170,7 +212,13 @@ export default function ChatPage() {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
         if (event.error === 'not-allowed') {
-          alert('마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
+          toast.error('마이크 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
+        } else if (event.error === 'no-speech') {
+          toast.info('음성이 감지되지 않았습니다. 다시 시도해주세요.');
+        } else if (event.error === 'network') {
+          toast.error('네트워크 오류로 음성 인식에 실패했습니다.');
+        } else {
+          toast.error('음성 인식 중 오류가 발생했습니다.');
         }
       };
 
@@ -182,7 +230,7 @@ export default function ChatPage() {
     } catch (error) {
       console.error('Failed to initialize speech recognition:', error);
       setIsListening(false);
-      alert('음성 인식을 시작할 수 없습니다.');
+      toast.error('음성 인식을 시작할 수 없습니다. 다시 시도해주세요.');
     }
   };
 
@@ -190,15 +238,59 @@ export default function ChatPage() {
     try {
       await navigator.clipboard.writeText(content);
       setCopiedId(messageId);
+      toast.success('클립보드에 복사되었습니다.');
       setTimeout(() => setCopiedId(null), 2000);
     } catch (error) {
       console.error('Failed to copy message:', error);
-      alert('복사에 실패했습니다. 다시 시도해주세요.');
+      toast.error('복사에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] max-w-5xl mx-auto">
+      {/* Mode Selector Header */}
+      <div className="border-b bg-background/95 backdrop-blur">
+        <div className="max-w-3xl mx-auto px-4 md:px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-sm">이거사 AI</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground hidden sm:inline">모드:</span>
+              <div className="flex items-center bg-muted rounded-full p-1">
+                <Button
+                  variant={searchMode === 'price' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSearchMode('price')}
+                  className={`h-7 px-3 rounded-full text-xs transition-all ${
+                    searchMode === 'price'
+                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'hover:bg-transparent'
+                  }`}
+                >
+                  <DollarSign className="h-3.5 w-3.5 mr-1" />
+                  가격 비교
+                </Button>
+                <Button
+                  variant={searchMode === 'recommend' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSearchMode('recommend')}
+                  className={`h-7 px-3 rounded-full text-xs transition-all ${
+                    searchMode === 'recommend'
+                      ? 'bg-purple-500 text-white hover:bg-purple-600'
+                      : 'hover:bg-transparent'
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  추천템
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Messages Area - ChatGPT/Claude style full-width messages */}
       <div className="flex-1 overflow-y-auto px-4 md:px-6">
         <div className="max-w-3xl mx-auto py-8 space-y-6">
@@ -308,22 +400,34 @@ export default function ChatPage() {
                       </div>
                     )}
 
-                    {/* Inline Product Cards */}
+                    {/* Rich Product Cards - 다층 신뢰 소스 기반 추천 */}
                     {message.role === "assistant" && shouldShowProducts && (
-                      <div className="mt-4 pt-4 border-t border-border/50">
+                      <div className="mt-6">
                         <div className="flex items-center gap-2 mb-4">
                           <Sparkles className="h-4 w-4 text-primary" />
                           <span className="text-sm font-semibold">추천 제품</span>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {productKeywords.slice(0, 2).map((keyword, keywordIdx) => {
+                        <div className="space-y-4">
+                          {productKeywords.slice(0, 1).map((keyword, keywordIdx) => {
                             const products = searchProducts(keyword);
-                            const product = products[0];
-                            if (!product) return null;
+                            if (!products || products.length === 0) return null;
+
+                            // Rich Card 생성
+                            const richCards = buildProductCards(
+                              products.slice(0, 2), // 최대 2개 제품
+                              userId,
+                              searchMode,
+                              getFriendPurchases,
+                              getSocialReviewsByProduct,
+                              getInfluencerReviewsByProduct,
+                              getInfluencerReviewSummary
+                            );
 
                             return (
-                              <div key={`${message.id}-product-${keywordIdx}`}>
-                                <ProductCard product={product} />
+                              <div key={`${message.id}-product-${keywordIdx}`} className="space-y-4">
+                                {richCards.map((card, cardIdx) => (
+                                  <ProductRecommendationCard key={card.id} card={card} index={cardIdx} />
+                                ))}
                               </div>
                             );
                           })}

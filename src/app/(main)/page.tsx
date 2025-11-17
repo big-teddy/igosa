@@ -1,8 +1,13 @@
 "use client";
+/**
+ * 이거사 홈페이지 - AI 쇼핑 에이전트
+ * Updated: 2025-11-17 v4 - 성능 최적화 및 타입 안정성 개선
+ */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRecentSearches } from "@/hooks/useRecentSearches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -19,8 +24,21 @@ import {
   Zap,
   CheckCircle2,
 } from "lucide-react";
-import { generateMockAIResponse, simulateNetworkDelay } from "@/lib/mock-ai-responses";
 import { motion, AnimatePresence } from "framer-motion";
+import { useModeStore } from "@/lib/stores/mode-store";
+import { toast } from "sonner";
+import { LoadingIndicator } from "@/components/ui/loading-indicator";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { RecentSearches } from "@/components/ui/recent-searches";
+import { ProductRecommendationCard } from "@/components/rich-cards/ProductRecommendationCard";
+import { ProductRecommendationCard as ProductCardType } from "@/types/rich-card";
+import { buildProductCards } from "@/lib/utils/card-builder";
+import { searchProducts } from "@/lib/data/mock-products";
+import { getFriendPurchases, getSocialReviewsByProduct } from "@/lib/data/mock-social";
+import { getInfluencerReviewsByProduct, getInfluencerReviewSummary } from "@/lib/data/mock-influencer";
+import { detectProductKeyword } from "@/lib/utils/keyword-matcher";
+import type { SearchMessage, ConversationMessage, ErrorState } from "@/types/search";
+import { analytics } from "@/lib/monitoring/posthog";
 
 // 실시간 트렌딩 검색어
 const TRENDING_SEARCHES = [
@@ -59,16 +77,25 @@ const MODE_PLACEHOLDERS = {
 
 export default function Home() {
   const router = useRouter();
+  const { searchMode, setSearchMode } = useModeStore();
+  const { searches: recentSearches, addSearch, removeSearch, clearAll: clearAllSearches } = useRecentSearches();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchMessage[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [searchMode, setSearchMode] = useState<"price" | "recommend">("price");
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [displayPlaceholder, setDisplayPlaceholder] = useState("");
+  const [conversationMessages, setConversationMessages] = useState<ConversationMessage[]>([]);
+  const [richCards, setRichCards] = useState<ProductCardType[]>([]);
+  const [errorState, setErrorState] = useState<ErrorState | null>(null);
+  const [lastQuery, setLastQuery] = useState<string>("");
   const resultsEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Mock user ID (실제로는 로그인 시스템에서 가져옴)
+  const userId = 'user-1';
 
   // Placeholder 타이핑 애니메이션 - 모드에 따라 변경
   useEffect(() => {
@@ -97,10 +124,10 @@ export default function Home() {
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (resultsEndRef.current) {
+    if (resultsEndRef.current && showResults && (searchResults.length > 0 || isTyping)) {
       resultsEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
-  }, [searchResults, isTyping]);
+  }, [searchResults, isTyping, showResults]);
 
   // Focus input after results appear
   useEffect(() => {
@@ -109,124 +136,278 @@ export default function Home() {
     }
   }, [showResults, isSearching]);
 
-  const handleSearch = async (e: React.FormEvent, queryOverride?: string) => {
+  const handleSearch = useCallback(async (e: React.FormEvent, queryOverride?: string) => {
     e.preventDefault();
+
+    setIsSearching(true);
+    setShowResults(true);
+    setErrorState(null);
+
+    // Get query from override or current state
     const query = queryOverride || searchQuery;
 
-    if (query.trim()) {
-      setIsSearching(true);
-      setShowResults(true);
-
-      // Add user message immediately
-      setSearchResults(prev => [
-        ...prev,
-        {
-          type: 'user-query',
-          content: query,
-          timestamp: new Date().toISOString()
-        }
-      ]);
-      setSearchQuery(""); // Clear input immediately
-
-      // Simulate typing indicator
-      setIsTyping(true);
-
-      try {
-        // Mock AI API 호출 (실제 API 연동 전)
-        // Add mode context to the query for better results
-        const contextualQuery = searchMode === 'price'
-          ? `[가격비교 모드] ${query}`
-          : `[추천템 모드] ${query}`;
-
-        await simulateNetworkDelay();
-
-        const aiResponses = generateMockAIResponse(query);
-
-        setIsTyping(false);
-
-        // Add AI responses
-        const newResults = aiResponses.map(response => ({
-          type: response.type === 'text' ? 'ai-response' : 'products',
-          content: response.content,
-          products: response.products,
-          timestamp: new Date().toISOString()
-        }));
-
-        setSearchResults(prev => [...prev, ...newResults]);
-        setIsSearching(false);
-      } catch (error) {
-        console.error('Search error:', error);
-        setIsTyping(false);
-        setSearchResults(prev => [
-          ...prev,
-          {
-            type: 'ai-response',
-            content: '죄송합니다. 검색 중 오류가 발생했습니다. 다시 시도해주세요.',
-            timestamp: new Date().toISOString()
-          }
-        ]);
-        setIsSearching(false);
-      }
+    if (!query.trim()) {
+      setIsSearching(false);
+      return;
     }
-  };
 
-  const handleModeBasedSearch = async () => {
-    const exampleQuery = searchMode === 'price'
-      ? '에어팟 프로 2세대 최저가 찾아줘'
-      : '20만원대 노트북 추천해줘';
+    setLastQuery(query);
+    addSearch(query);
 
+    // Add user message immediately
+    const userMessage: SearchMessage = {
+      type: 'user-query' as const,
+      content: query,
+      timestamp: new Date().toISOString()
+    };
+    setSearchResults(prev => [...prev, userMessage]);
     setSearchQuery("");
-    setSearchResults([]); // Clear previous results
-    setShowResults(true);
-    setIsSearching(true);
 
-    // Add user query
-    setSearchResults([
-      {
-        type: 'user-query',
-        content: exampleQuery,
-        timestamp: new Date().toISOString()
-      }
-    ]);
+    // Update conversation history using functional update
+    let newMessages: ConversationMessage[] = [];
+    setConversationMessages(prev => {
+      newMessages = [
+        ...prev,
+        { role: 'user' as const, content: query }
+      ];
+      return newMessages;
+    });
 
     // Simulate typing indicator
     setIsTyping(true);
 
+    // Create abort controller for cancellation
+    abortControllerRef.current = new AbortController();
+
     try {
-      await simulateNetworkDelay();
+      // Call actual chat API with mode
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: newMessages,
+          mode: searchMode
+        }),
+        signal: abortControllerRef.current.signal
+      });
 
-      const aiResponses = generateMockAIResponse(exampleQuery);
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      // Handle streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let aiResponse = '';
+      let currentResult: any = null;
 
       setIsTyping(false);
 
-      // Add AI responses
-      const newResults = aiResponses.map(response => ({
-        type: response.type === 'text' ? 'ai-response' : 'products',
-        content: response.content,
-        products: response.products,
+      // Add initial AI response placeholder
+      const aiMessagePlaceholder: SearchMessage = {
+        type: 'ai-response' as const,
+        content: '',
         timestamp: new Date().toISOString()
-      }));
+      };
+      setSearchResults(prev => [...prev, aiMessagePlaceholder]);
 
-      setSearchResults(newResults);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content || '';
+              if (content) {
+                aiResponse += content;
+
+                // Update the last message with streaming content
+                setSearchResults(prev => {
+                  const newResults = [...prev];
+                  const lastIdx = newResults.length - 1;
+                  if (newResults[lastIdx] && newResults[lastIdx].type === 'ai-response') {
+                    newResults[lastIdx] = {
+                      ...newResults[lastIdx],
+                      content: aiResponse
+                    };
+                  }
+                  return newResults;
+                });
+              }
+            } catch (e) {
+              // Ignore JSON parse errors for incomplete chunks
+            }
+          }
+        }
+      }
+
+      // Update conversation history with AI response
+      setConversationMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: aiResponse }
+      ]);
+
+      // 제품 검색 키워드 감지 및 Rich Card 생성
+      const detectedKeyword = detectProductKeyword(query);
+      let resultsCount = 0;
+
+      if (detectedKeyword) {
+        // 제품 검색 및 Rich Card 생성
+        const products = searchProducts(detectedKeyword);
+        if (products.length > 0) {
+          resultsCount = products.length;
+          const cards = buildProductCards(
+            products.slice(0, 3), // 최대 3개 제품
+            userId,
+            searchMode,
+            getFriendPurchases,
+            getSocialReviewsByProduct,
+            getInfluencerReviewsByProduct,
+            getInfluencerReviewSummary
+          );
+
+          // Rich Card 데이터 추가
+          setRichCards(cards);
+          const richCardsMessage: SearchMessage = {
+            type: 'rich-cards' as const,
+            cards: cards,
+            timestamp: new Date().toISOString()
+          };
+          setSearchResults(prev => [...prev, richCardsMessage]);
+        }
+      }
+
+      // Track search event
+      analytics.trackSearch(query, resultsCount, searchMode);
+
       setIsSearching(false);
-    } catch (error) {
-      console.error('Quick action error:', error);
+    } catch (error: any) {
+      console.error('Search error:', error);
       setIsTyping(false);
       setIsSearching(false);
+
+      if (error.name === 'AbortError') {
+        // Request was cancelled
+        toast.info('검색이 취소되었습니다.');
+        return;
+      }
+
+      // Determine error type and show appropriate message
+      let errorMessage = 'AI 응답을 불러오는 중 문제가 발생했습니다.';
+      let suggestions = ['잠시 후 다시 시도해보세요', '인터넷 연결을 확인해주세요', '검색어를 바꿔서 시도해보세요'];
+
+      if (error.message.includes('API error: 429')) {
+        errorMessage = '요청이 너무 많습니다. 잠시만 기다려주세요.';
+        suggestions = [
+          '1-2분 후 다시 시도해주세요',
+          '동시에 너무 많은 검색을 하지 마세요',
+          '다른 검색어로 시도해보세요'
+        ];
+        toast.error('요청 한도 초과');
+      } else if (error.message.includes('API error: 401')) {
+        errorMessage = 'AI 서비스 인증에 문제가 있습니다.';
+        suggestions = [
+          '페이지를 새로고침 해보세요',
+          '로그인 상태를 확인해주세요',
+          '문제가 계속되면 고객센터에 문의하세요'
+        ];
+        toast.error('인증 오류');
+      } else if (error.message.includes('API error: 500') || error.message.includes('API error: 503')) {
+        errorMessage = '서버에 일시적인 문제가 발생했습니다.';
+        suggestions = [
+          '잠시 후 다시 시도해주세요',
+          '서버가 점검 중일 수 있습니다',
+          '문제가 지속되면 고객센터에 알려주세요'
+        ];
+        toast.error('서버 오류');
+      } else if (error.message.includes('Failed to fetch') || error.message === 'Network request failed') {
+        errorMessage = '인터넷 연결이 불안정합니다.';
+        suggestions = [
+          'Wi-Fi 또는 데이터 연결을 확인하세요',
+          '네트워크가 안정적인 곳으로 이동하세요',
+          '페이지를 새로고침 해보세요'
+        ];
+        toast.error('네트워크 오류');
+      } else {
+        toast.error('검색 오류 발생');
+      }
+
+      setErrorState({ message: errorMessage, suggestions });
     }
-  };
+  }, [searchQuery, searchMode, addSearch, userId]);
 
-  const handleExamplePrompt = (prompt: string) => {
+  // 상태 초기화 함수
+  const resetConversation = useCallback(() => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setConversationMessages([]);
+    setRichCards([]);
+    setShowResults(false);
+    setIsSearching(false);
+    setIsTyping(false);
+    setErrorState(null);
+    setLastQuery("");
+
+    // Abort any ongoing requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
+
+  // 에러 후 재시도 함수
+  const handleRetry = useCallback(() => {
+    if (lastQuery) {
+      setErrorState(null);
+      handleSearch({ preventDefault: () => {} } as React.FormEvent, lastQuery);
+    }
+  }, [lastQuery, handleSearch]);
+
+  const handleModeBasedSearch = useCallback(async () => {
+    const exampleQuery = searchMode === 'price'
+      ? '에어팟 프로 2세대 최저가 찾아줘'
+      : '20만원대 노트북 추천해줘';
+
+    resetConversation();
+
+    // Trigger search with example query
+    handleSearch({ preventDefault: () => {} } as React.FormEvent, exampleQuery);
+  }, [searchMode, resetConversation, handleSearch]);
+
+  const handleExamplePrompt = useCallback((prompt: string) => {
     setSearchQuery(prompt);
-    setSearchResults([]); // Clear previous results
+    // Don't clear results - continue conversation
     handleSearch({ preventDefault: () => {} } as React.FormEvent, prompt);
-  };
+  }, [handleSearch]);
 
-  const handleTrendingSearch = (query: string) => {
+  const handleTrendingSearch = useCallback((query: string) => {
+    resetConversation();
     setSearchQuery(query);
-    setSearchResults([]); // Clear previous results
     handleSearch({ preventDefault: () => {} } as React.FormEvent, query);
-  };
+  }, [resetConversation, handleSearch]);
+
+  const handleRecentSearchClick = useCallback((query: string) => {
+    if (!showResults) {
+      // Start new conversation with recent search
+      resetConversation();
+    }
+    setSearchQuery(query);
+    handleSearch({ preventDefault: () => {} } as React.FormEvent, query);
+  }, [showResults, resetConversation, handleSearch]);
 
   return (
     <div className={`flex flex-col min-h-screen transition-colors duration-700 ${
@@ -268,17 +449,6 @@ export default function Home() {
               >
                 AI가 도와주는 똑똑한 쇼핑
               </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-              >
-                <Badge variant="secondary" className="inline-flex items-center gap-2 px-4 py-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="text-sm font-medium">온라인</span>
-                </Badge>
-              </motion.div>
             </motion.div>
           )}
 
@@ -289,35 +459,163 @@ export default function Home() {
             transition={{ duration: 0.5, delay: showResults ? 0 : 0.5 }}
             className={`space-y-6 ${!showResults ? '' : 'pt-8'}`}
           >
-            <form onSubmit={handleSearch} className="relative">
-              <div className="relative group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground group-focus-within:text-primary transition-all duration-300 group-focus-within:scale-110"
-                  aria-hidden="true"
-                />
-                <Input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder={displayPlaceholder}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-16 md:h-18 pl-16 pr-32 text-base md:text-lg rounded-2xl border-2 border-border focus:border-primary shadow-lg hover:shadow-xl focus:shadow-2xl transition-all duration-300 bg-card focus:scale-[1.02] font-medium"
-                  aria-label="제품 검색"
-                  autoComplete="off"
-                  disabled={isSearching}
-                />
-                {searchQuery && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2"
-                  >
-                    <kbd className="hidden sm:inline-flex h-7 px-3 items-center gap-1 rounded-lg border-2 border-primary/20 bg-primary/5 text-xs font-bold text-primary">
-                      Enter ↵
-                    </kbd>
-                  </motion.div>
-                )}
+            {/* Mode Selector - AI Service Style - 2025 Modern Design */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, delay: showResults ? 0 : 0.6 }}
+              className="flex justify-center"
+              role="group"
+              aria-label="검색 모드 선택"
+            >
+              <div className="inline-flex items-center bg-muted/80 backdrop-blur-sm rounded-full p-1.5 shadow-lg border border-border/50">
+                <motion.button
+                  onClick={() => {
+                    setSearchMode('price');
+                    setPlaceholderIndex(0);
+                  }}
+                  className={`relative px-6 py-3 rounded-full text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
+                    searchMode === 'price'
+                      ? 'text-white'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  aria-label="가격 비교 모드"
+                  aria-pressed={searchMode === 'price'}
+                  role="button"
+                  tabIndex={0}
+                >
+                  {searchMode === 'price' && (
+                    <motion.div
+                      layoutId="mode-indicator"
+                      className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full shadow-md"
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    />
+                  )}
+                  <DollarSign className={`h-4 w-4 relative z-10 ${searchMode === 'price' ? 'text-white' : ''}`} />
+                  <span className="relative z-10">가격 비교</span>
+                </motion.button>
+
+                <motion.button
+                  onClick={() => {
+                    setSearchMode('recommend');
+                    setPlaceholderIndex(0);
+                  }}
+                  className={`relative px-6 py-3 rounded-full text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
+                    searchMode === 'recommend'
+                      ? 'text-white'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  aria-label="AI 추천 모드"
+                  aria-pressed={searchMode === 'recommend'}
+                  role="button"
+                  tabIndex={0}
+                >
+                  {searchMode === 'recommend' && (
+                    <motion.div
+                      layoutId="mode-indicator"
+                      className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-md"
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    />
+                  )}
+                  <Sparkles className={`h-4 w-4 relative z-10 ${searchMode === 'recommend' ? 'text-white' : ''}`} />
+                  <span className="relative z-10">AI 추천</span>
+                </motion.button>
               </div>
-            </form>
+            </motion.div>
+
+            {/* Mode Description - Subtle */}
+            {!showResults && (
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={searchMode}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.2 }}
+                  className={`text-center text-sm transition-colors duration-300 ${
+                    searchMode === 'price' ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'
+                  }`}
+                >
+                  {searchMode === 'price'
+                    ? '💰 여러 쇼핑몰의 최저가를 실시간으로 비교해드립니다'
+                    : '✨ 친구와 전문가 리뷰 기반 맞춤 추천을 제공합니다'}
+                </motion.p>
+              </AnimatePresence>
+            )}
+
+            <div className="space-y-3">
+              <form onSubmit={handleSearch} className="relative" role="search" aria-label="제품 검색">
+                <div className="relative group">
+                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground group-focus-within:text-primary transition-all duration-300 group-focus-within:scale-110"
+                    aria-hidden="true"
+                  />
+                  <Input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder={displayPlaceholder}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-16 md:h-18 pl-16 pr-32 text-base md:text-lg rounded-2xl border-2 border-border focus:border-primary shadow-lg hover:shadow-xl focus:shadow-2xl transition-all duration-300 bg-card focus:scale-[1.02] font-medium"
+                    aria-label="제품 검색"
+                    autoComplete="off"
+                    disabled={isSearching}
+                  />
+                  {searchQuery && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2"
+                    >
+                      <kbd className="hidden sm:inline-flex h-7 px-3 items-center gap-1 rounded-lg border-2 border-primary/20 bg-primary/5 text-xs font-bold text-primary">
+                        Enter ↵
+                      </kbd>
+                    </motion.div>
+                  )}
+                </div>
+              </form>
+
+              {/* New Conversation Button - Show when conversation is active */}
+              {showResults && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex justify-center"
+                >
+                  <Button
+                    onClick={resetConversation}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 hover:bg-accent transition-all duration-200"
+                    aria-label="새 대화 시작하기"
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                    새 대화 시작
+                  </Button>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Recent Searches - Only show when no conversation and has searches */}
+            {!showResults && recentSearches.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+              >
+                <RecentSearches
+                  searches={recentSearches}
+                  onSearchClick={handleRecentSearchClick}
+                  onRemove={removeSearch}
+                  onClearAll={clearAllSearches}
+                  maxDisplay={5}
+                />
+              </motion.div>
+            )}
 
             {/* Example Prompts - Only show when no conversation - 모드별로 변경 */}
             {!showResults && (
@@ -349,6 +647,8 @@ export default function Home() {
                           ? 'border-blue-200 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 focus:ring-blue-500'
                           : 'border-purple-200 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/30 focus:ring-purple-500'
                       }`}
+                      aria-label={`예시 검색: ${prompt}`}
+                      role="button"
                     >
                       {prompt}
                     </motion.button>
@@ -358,145 +658,6 @@ export default function Home() {
             )}
           </motion.div>
 
-          {/* Mode Selection Cards - Only show when no conversation */}
-          {!showResults && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="space-y-6"
-            >
-              <div className="text-center">
-                <h2 className="text-2xl font-bold mb-2">어떻게 도와드릴까요?</h2>
-                <p className="text-muted-foreground">원하는 방식을 선택해주세요</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-                {/* Price Comparison Card */}
-                <motion.button
-                  whileHover={{ scale: 1.03, y: -5 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setSearchMode('price');
-                    setPlaceholderIndex(0); // 모드 변경 시 placeholder 초기화
-                  }}
-                  className={`relative p-8 rounded-3xl border-3 transition-all duration-300 text-left overflow-hidden group ${
-                    searchMode === 'price'
-                      ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 shadow-xl shadow-blue-500/20'
-                      : 'border-border bg-card hover:border-blue-300 hover:shadow-lg'
-                  }`}
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-
-                  <div className="relative space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-3xl shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
-                        💰
-                      </div>
-                      {searchMode === 'price' && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 20 }}
-                        >
-                          <CheckCircle2 className="h-7 w-7 text-blue-500" />
-                        </motion.div>
-                      )}
-                    </div>
-
-                    <div>
-                      <h3 className="text-2xl font-bold mb-2 group-hover:text-blue-600 transition-colors">
-                        가격 비교
-                      </h3>
-                      <p className="text-base text-muted-foreground font-medium mb-4">
-                        여러 쇼핑몰의 최저가를 한눈에 비교
-                      </p>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <DollarSign className="h-4 w-4 text-blue-500" />
-                          <span>실시간 최저가 검색</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Zap className="h-4 w-4 text-blue-500" />
-                          <span>빠른 가격 비교</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-border/50">
-                      <p className="text-xs text-muted-foreground flex items-center gap-2">
-                        <span className="font-semibold">예시:</span>
-                        "에어팟 프로 2세대 최저가 찾아줘"
-                      </p>
-                    </div>
-                  </div>
-                </motion.button>
-
-                {/* Recommendation Card */}
-                <motion.button
-                  whileHover={{ scale: 1.03, y: -5 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setSearchMode('recommend');
-                    setPlaceholderIndex(0); // 모드 변경 시 placeholder 초기화
-                  }}
-                  className={`relative p-8 rounded-3xl border-3 transition-all duration-300 text-left overflow-hidden group ${
-                    searchMode === 'recommend'
-                      ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 shadow-xl shadow-purple-500/20'
-                      : 'border-border bg-card hover:border-purple-300 hover:shadow-lg'
-                  }`}
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-
-                  <div className="relative space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-3xl shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
-                        ✨
-                      </div>
-                      {searchMode === 'recommend' && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 20 }}
-                        >
-                          <CheckCircle2 className="h-7 w-7 text-purple-500" />
-                        </motion.div>
-                      )}
-                    </div>
-
-                    <div>
-                      <h3 className="text-2xl font-bold mb-2 group-hover:text-purple-600 transition-colors">
-                        추천템
-                      </h3>
-                      <p className="text-base text-muted-foreground font-medium mb-4">
-                        AI가 분석한 맞춤 제품 추천
-                      </p>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Sparkles className="h-4 w-4 text-purple-500" />
-                          <span>AI 맞춤 추천</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Users className="h-4 w-4 text-purple-500" />
-                          <span>인기 제품 분석</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-border/50">
-                      <p className="text-xs text-muted-foreground flex items-center gap-2">
-                        <span className="font-semibold">예시:</span>
-                        "20만원대 가성비 노트북 추천해줘"
-                      </p>
-                    </div>
-                  </div>
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
-
           {/* Trending Searches - Only show when no conversation */}
           {!showResults && (
             <motion.div
@@ -504,9 +665,11 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.0 }}
               className="space-y-6"
+              role="region"
+              aria-label="실시간 인기 검색어"
             >
               <div className="flex items-center justify-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
+                <TrendingUp className="h-5 w-5 text-primary" aria-hidden="true" />
                 <h3 className="text-lg font-bold">실시간 인기 검색어</h3>
               </div>
 
@@ -521,6 +684,7 @@ export default function Home() {
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleTrendingSearch(search.text)}
                     className="p-5 rounded-2xl border-2 border-border hover:border-primary hover:shadow-lg transition-all duration-200 text-left group bg-card"
+                    aria-label={`인기 검색어: ${search.text}, ${search.count}명 검색 중`}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <span className="text-3xl font-bold text-primary/40 group-hover:text-primary group-hover:scale-125 transition-all duration-200 inline-block">
@@ -548,6 +712,10 @@ export default function Home() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5 }}
               className="space-y-6 pb-8"
+              role="region"
+              aria-label="검색 결과 및 대화 내역"
+              aria-live="polite"
+              aria-atomic="false"
             >
               {searchResults.map((result, idx) => (
                 <motion.div
@@ -579,9 +747,18 @@ export default function Home() {
                             <Sparkles className="h-5 w-5 text-white" />
                           </div>
                           <div className="bg-muted rounded-2xl rounded-tl-sm px-6 py-4 shadow-sm">
-                            <p className="text-base leading-relaxed">{result.content}</p>
+                            <p className="text-base leading-relaxed whitespace-pre-wrap">{result.content}</p>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  ) : result.type === 'rich-cards' ? (
+                    // Rich Product Cards - 새로운 구조화된 카드
+                    <div className="w-full">
+                      <div className="space-y-4">
+                        {result.cards?.map((card: ProductCardType, cardIdx: number) => (
+                          <ProductRecommendationCard key={card.id} card={card} index={cardIdx} />
+                        ))}
                       </div>
                     </div>
                   ) : (
@@ -645,25 +822,28 @@ export default function Home() {
                 </motion.div>
               ))}
 
-              {/* Typing Indicator */}
+              {/* Enhanced Loading Indicator */}
               {isTyping && (
+                <div className="flex justify-center my-8">
+                  <LoadingIndicator mode={searchMode} />
+                </div>
+              )}
+
+              {/* Error Display */}
+              {errorState && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex justify-start"
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex justify-center my-8"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-white animate-pulse" />
-                    </div>
-                    <div className="bg-muted rounded-2xl rounded-tl-sm px-6 py-4 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </div>
-                    </div>
-                  </div>
+                  <ErrorDisplay
+                    message={errorState.message}
+                    suggestions={errorState.suggestions}
+                    onRetry={handleRetry}
+                    onGoHome={resetConversation}
+                  />
                 </motion.div>
               )}
 

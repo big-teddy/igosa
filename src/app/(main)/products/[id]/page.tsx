@@ -22,6 +22,10 @@ import {
   getInfluencerReviewSummary,
   InfluencerReview
 } from "@/lib/data/mock-influencer";
+import { RecommendationSection } from "@/components/recommendations/RecommendationSection";
+import { recommendationService } from "@/lib/services/recommendation-service";
+import { analytics } from "@/lib/monitoring/posthog";
+import { SetTargetPriceWidget } from "@/components/price-tracking/SetTargetPriceWidget";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -33,6 +37,9 @@ export default function ProductDetailPage() {
   const [influencerReviews, setInfluencerReviews] = useState<InfluencerReview[]>([]);
   const [influencerSummary, setInfluencerSummary] = useState<any>(null);
 
+  // Mock user ID (실제로는 로그인 시스템에서 가져옴)
+  const userId = 'user-1';
+
   useEffect(() => {
     if (params.id) {
       const foundProduct = mockProducts.find(p => p.id === params.id);
@@ -42,13 +49,24 @@ export default function ProductDetailPage() {
         setIsWishlisted(isInWishlist(foundProduct.id));
         setReviews(getProductReviews(foundProduct.id));
 
-        // 소셜 데이터 로드 (Mock: 실제로는 로그인 유저 ID 사용)
+        // 소셜 데이터 로드
         setFriendPurchases(getFriendPurchases('user-1', foundProduct.id));
         setSocialReviews(getSocialReviewsByProduct(foundProduct.id));
 
         // 인플루언서 리뷰 로드
         setInfluencerReviews(getInfluencerReviewsByProduct(foundProduct.id));
         setInfluencerSummary(getInfluencerReviewSummary(foundProduct.id));
+
+        // Track product view for recommendations
+        recommendationService.trackInteraction(userId, 'view', {
+          productId: foundProduct.id,
+          category: foundProduct.category,
+          brand: foundProduct.brand,
+        });
+
+        // Track product view analytics
+        const lowestPrice = Math.min(...foundProduct.prices.map((p: any) => p.total));
+        analytics.trackProductView(foundProduct.id, foundProduct.name, lowestPrice);
       }
     }
   }, [params.id]);
@@ -171,6 +189,17 @@ export default function ProductDetailPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Price Tracking Widget - NegoDeal 2.0 */}
+      <div className="mb-8">
+        <SetTargetPriceWidget
+          productId={product.id}
+          productName={product.name}
+          currentPrice={Math.min(...product.prices.map((p: any) => p.total))}
+          minPrice={Math.min(...product.prices.map((p: any) => p.total)) * 0.9}
+          avgPrice={product.prices.reduce((acc: number, p: any) => acc + p.total, 0) / product.prices.length}
+        />
       </div>
 
       {/* Social Proof - Friend Purchases */}
@@ -518,6 +547,27 @@ export default function ProductDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Similar Products Recommendations */}
+      <div className="mt-12">
+        <RecommendationSection
+          userId={userId}
+          productId={product.id}
+          type="similar_products"
+          limit={6}
+          showHeader={true}
+        />
+      </div>
+
+      {/* Personalized Recommendations */}
+      <div className="mt-12">
+        <RecommendationSection
+          userId={userId}
+          type="personalized"
+          limit={6}
+          showHeader={true}
+        />
+      </div>
     </div>
   );
 }
