@@ -37,6 +37,7 @@ import {
   BarChart3,
   DollarSign,
   Bell,
+  Settings,
 } from "lucide-react";
 
 export default function MyPage() {
@@ -146,6 +147,12 @@ export default function MyPage() {
                 <Button variant="outline">
                   <Home className="h-4 w-4 mr-2" />
                   홈으로
+                </Button>
+              </Link>
+              <Link href="/settings">
+                <Button variant="outline">
+                  <Settings className="h-4 w-4 mr-2" />
+                  알림 설정
                 </Button>
               </Link>
               <Button variant="outline">
