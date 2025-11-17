@@ -459,6 +459,8 @@ export default function Home() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4, delay: showResults ? 0 : 0.6 }}
               className="flex justify-center"
+              role="group"
+              aria-label="검색 모드 선택"
             >
               <div className="inline-flex items-center bg-muted/80 backdrop-blur-sm rounded-full p-1.5 shadow-lg border border-border/50">
                 <motion.button
@@ -473,6 +475,10 @@ export default function Home() {
                   }`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  aria-label="가격 비교 모드"
+                  aria-pressed={searchMode === 'price'}
+                  role="button"
+                  tabIndex={0}
                 >
                   {searchMode === 'price' && (
                     <motion.div
@@ -497,6 +503,10 @@ export default function Home() {
                   }`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  aria-label="AI 추천 모드"
+                  aria-pressed={searchMode === 'recommend'}
+                  role="button"
+                  tabIndex={0}
                 >
                   {searchMode === 'recommend' && (
                     <motion.div
@@ -532,7 +542,7 @@ export default function Home() {
             )}
 
             <div className="space-y-3">
-              <form onSubmit={handleSearch} className="relative">
+              <form onSubmit={handleSearch} className="relative" role="search" aria-label="제품 검색">
                 <div className="relative group">
                   <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground group-focus-within:text-primary transition-all duration-300 group-focus-within:scale-110"
                     aria-hidden="true"
@@ -575,8 +585,9 @@ export default function Home() {
                     variant="outline"
                     size="sm"
                     className="gap-2 hover:bg-accent transition-all duration-200"
+                    aria-label="새 대화 시작하기"
                   >
-                    <Sparkles className="h-4 w-4" />
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
                     새 대화 시작
                   </Button>
                 </motion.div>
@@ -630,6 +641,8 @@ export default function Home() {
                           ? 'border-blue-200 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 focus:ring-blue-500'
                           : 'border-purple-200 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/30 focus:ring-purple-500'
                       }`}
+                      aria-label={`예시 검색: ${prompt}`}
+                      role="button"
                     >
                       {prompt}
                     </motion.button>
@@ -646,9 +659,11 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.0 }}
               className="space-y-6"
+              role="region"
+              aria-label="실시간 인기 검색어"
             >
               <div className="flex items-center justify-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
+                <TrendingUp className="h-5 w-5 text-primary" aria-hidden="true" />
                 <h3 className="text-lg font-bold">실시간 인기 검색어</h3>
               </div>
 
@@ -663,6 +678,7 @@ export default function Home() {
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleTrendingSearch(search.text)}
                     className="p-5 rounded-2xl border-2 border-border hover:border-primary hover:shadow-lg transition-all duration-200 text-left group bg-card"
+                    aria-label={`인기 검색어: ${search.text}, ${search.count}명 검색 중`}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <span className="text-3xl font-bold text-primary/40 group-hover:text-primary group-hover:scale-125 transition-all duration-200 inline-block">
@@ -690,6 +706,10 @@ export default function Home() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5 }}
               className="space-y-6 pb-8"
+              role="region"
+              aria-label="검색 결과 및 대화 내역"
+              aria-live="polite"
+              aria-atomic="false"
             >
               {searchResults.map((result, idx) => (
                 <motion.div
