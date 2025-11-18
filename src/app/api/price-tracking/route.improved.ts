@@ -99,11 +99,14 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     .single();
 
   if (insertError || !tracking) {
-    logger.error('Failed to create price tracking', insertError, {
+    logger.error('Failed to create price tracking', insertError || undefined, {
       userId: authUser.id,
       productId: validated.productId,
     });
-    throw new DatabaseError(insertError?.message || 'Failed to create price tracking', insertError);
+    throw new DatabaseError(
+      insertError?.message || 'Failed to create price tracking',
+      insertError || undefined
+    );
   }
 
   // Add to Redis demand aggregation (fire and forget)
@@ -194,10 +197,10 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   const { data: trackings, error: queryError, count } = await query;
 
   if (queryError) {
-    logger.error('Failed to fetch price trackings', queryError, {
+    logger.error('Failed to fetch price trackings', queryError || undefined, {
       userId: authUser.id,
     });
-    throw new DatabaseError(queryError.message, queryError);
+    throw new DatabaseError(queryError.message, queryError || undefined);
   }
 
   const duration = Date.now() - startTime;
