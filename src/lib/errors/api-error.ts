@@ -225,12 +225,13 @@ export function handleAPIError(error: unknown): NextResponse {
     }
 
     // Log database error
+    const dbErrorInstance = new DatabaseError(dbError.message, error instanceof Error ? error : undefined);
     if (Sentry) {
-      Sentry.captureException(new DatabaseError(dbError.message, error as Error));
+      Sentry.captureException(dbErrorInstance);
     }
 
     return NextResponse.json(
-      new DatabaseError(dbError.message).toJSON(),
+      dbErrorInstance.toJSON(),
       { status: 500 }
     );
   }
