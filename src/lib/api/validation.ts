@@ -20,7 +20,7 @@ export async function validateBody<T>(
     if (error instanceof ZodError) {
       const fields: Record<string, string[]> = {};
 
-      error.errors.forEach((err) => {
+      error.issues.forEach((err) => {
         const path = err.path.join('.');
         if (!fields[path]) {
           fields[path] = [];
@@ -52,7 +52,7 @@ export function validateQuery<T>(
     if (error instanceof ZodError) {
       const fields: Record<string, string[]> = {};
 
-      error.errors.forEach((err) => {
+      error.issues.forEach((err) => {
         const path = err.path.join('.');
         if (!fields[path]) {
           fields[path] = [];
