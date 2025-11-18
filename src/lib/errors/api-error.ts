@@ -5,7 +5,14 @@
  */
 
 import { NextResponse } from 'next/server';
-import * as Sentry from '@sentry/nextjs';
+
+// Optional Sentry import - gracefully handle if not configured
+let Sentry: typeof import('@sentry/nextjs') | null = null;
+try {
+  Sentry = require('@sentry/nextjs');
+} catch {
+  // Sentry not configured - logging will be console only
+}
 
 export enum ErrorCode {
   // Client Errors (4xx)
@@ -185,7 +192,7 @@ export function handleAPIError(error: unknown): NextResponse {
   // Already an APIError
   if (error instanceof APIError) {
     // Log to Sentry for 5xx errors
-    if (error.statusCode >= 500) {
+    if (error.statusCode >= 500 && Sentry) {
       Sentry.captureException(error, {
         extra: {
           code: error.code,
@@ -218,7 +225,9 @@ export function handleAPIError(error: unknown): NextResponse {
     }
 
     // Log database error
-    Sentry.captureException(new DatabaseError(dbError.message, error as Error));
+    if (Sentry) {
+      Sentry.captureException(new DatabaseError(dbError.message, error as Error));
+    }
 
     return NextResponse.json(
       new DatabaseError(dbError.message).toJSON(),
@@ -228,7 +237,9 @@ export function handleAPIError(error: unknown): NextResponse {
 
   // Generic Error
   if (error instanceof Error) {
-    Sentry.captureException(error);
+    if (Sentry) {
+      Sentry.captureException(error);
+    }
 
     return NextResponse.json(
       {
@@ -245,7 +256,9 @@ export function handleAPIError(error: unknown): NextResponse {
   }
 
   // Unknown error type
-  Sentry.captureMessage(`Unknown error type: ${JSON.stringify(error)}`);
+  if (Sentry) {
+    Sentry.captureMessage(`Unknown error type: ${JSON.stringify(error)}`);
+  }
 
   return NextResponse.json(
     {

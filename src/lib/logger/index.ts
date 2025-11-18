@@ -4,7 +4,13 @@
  * Provides consistent logging across the application
  */
 
-import * as Sentry from '@sentry/nextjs';
+// Optional Sentry import - gracefully handle if not configured
+let Sentry: typeof import('@sentry/nextjs') | null = null;
+try {
+  Sentry = require('@sentry/nextjs');
+} catch {
+  // Sentry not configured - logging will be console only
+}
 
 export enum LogLevel {
   DEBUG = 'debug',
@@ -81,22 +87,26 @@ class Logger {
         break;
       case LogLevel.WARN:
         console.warn(formatted);
-        Sentry.captureMessage(message, {
-          level: 'warning',
-          extra: context,
-        });
+        if (Sentry) {
+          Sentry.captureMessage(message, {
+            level: 'warning',
+            extra: context,
+          });
+        }
         break;
       case LogLevel.ERROR:
         console.error(formatted);
-        if (error) {
-          Sentry.captureException(error, {
-            extra: context,
-          });
-        } else {
-          Sentry.captureMessage(message, {
-            level: 'error',
-            extra: context,
-          });
+        if (Sentry) {
+          if (error) {
+            Sentry.captureException(error, {
+              extra: context,
+            });
+          } else {
+            Sentry.captureMessage(message, {
+              level: 'error',
+              extra: context,
+            });
+          }
         }
         break;
     }
