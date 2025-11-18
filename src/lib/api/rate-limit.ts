@@ -17,22 +17,22 @@ export const RateLimitConfig = {
   // Strict rate limit for anonymous users
   anonymous: {
     requests: 10,
-    window: '1 m', // 10 requests per minute
+    window: '60 s', // 10 requests per minute
   },
   // Normal rate limit for authenticated users
   authenticated: {
     requests: 100,
-    window: '1 m', // 100 requests per minute
+    window: '60 s', // 100 requests per minute
   },
   // Rate limit for expensive operations
   expensive: {
     requests: 5,
-    window: '1 m', // 5 requests per minute
+    window: '60 s', // 5 requests per minute
   },
   // Rate limit for write operations
   write: {
     requests: 30,
-    window: '1 m', // 30 writes per minute
+    window: '60 s', // 30 writes per minute
   },
 } as const;
 
