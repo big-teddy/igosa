@@ -4,7 +4,7 @@
  * Uses Upstash Rate Limit for serverless-friendly rate limiting
  */
 
-import { Ratelimit } from '@upstash/ratelimit';
+import { Ratelimit, type Duration } from '@upstash/ratelimit';
 import { getRedisClient } from '@/lib/redis/client';
 import { RateLimitError } from '@/lib/errors/api-error';
 import { logger } from '@/lib/logger';
@@ -13,7 +13,7 @@ import { NextRequest } from 'next/server';
 /**
  * Rate limit configurations
  */
-export const RateLimitConfig = {
+export const RateLimitConfig: Record<string, { requests: number; window: Duration }> = {
   // Strict rate limit for anonymous users
   anonymous: {
     requests: 10,
@@ -34,7 +34,7 @@ export const RateLimitConfig = {
     requests: 30,
     window: '60 s', // 30 writes per minute
   },
-} as const;
+};
 
 /**
  * Get client identifier from request
@@ -55,7 +55,7 @@ function getClientId(request: NextRequest, userId?: string): string {
 /**
  * Create rate limiter instance
  */
-function createRateLimiter(config: { requests: number; window: string }) {
+function createRateLimiter(config: { requests: number; window: Duration }) {
   try {
     const redis = getRedisClient();
 
@@ -145,7 +145,7 @@ function parseWindow(window: string): number {
 export async function rateLimit(
   request: NextRequest,
   options: {
-    config: typeof RateLimitConfig[keyof typeof RateLimitConfig];
+    config: { requests: number; window: Duration };
     userId?: string;
     identifier?: string;
   }
@@ -191,7 +191,7 @@ export async function rateLimit(
  * Rate limit decorator for API routes
  */
 export function withRateLimit(
-  config: typeof RateLimitConfig[keyof typeof RateLimitConfig],
+  config: { requests: number; window: Duration },
   getUserId?: (request: NextRequest) => Promise<string | undefined>
 ) {
   return function <T extends (request: NextRequest, ...args: any[]) => Promise<any>>(
