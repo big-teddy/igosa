@@ -32,6 +32,13 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { CreatePriceTrackingRequest, CreatePriceTrackingResponse, DemandAggregation } from '@/types/price-tracking';
+import {
+  trackNegoDealWidgetViewed,
+  trackNegoDealParticipateClicked,
+  trackNegoDealParticipateCompleted,
+  trackNegoDealCustomPriceSet,
+  trackNegoDealError,
+} from '@/lib/analytics/negodeal-events';
 
 interface NegoDealWidgetProps {
   productId: string;
@@ -104,9 +111,20 @@ export function NegoDealWidget({
   deadline.setHours(deadline.getHours() + 24);
   const hoursRemaining = Math.floor((deadline.getTime() - Date.now()) / (1000 * 60 * 60));
 
-  // Load demand data
+  // Load demand data & Track widget view
   useEffect(() => {
     loadDemandData();
+
+    // Analytics: 위젯 노출 추적
+    trackNegoDealWidgetViewed({
+      product_id: productId,
+      variant: 'unified',
+      ai_recommended_price: recommendedPrice,
+      participant_count: demandData?.totalUsers || 0,
+      current_price: currentPrice,
+      min_price: minPrice,
+    });
+
     // 10초마다 실시간 업데이트
     const interval = setInterval(loadDemandData, 10000);
     return () => clearInterval(interval);
@@ -126,7 +144,20 @@ export function NegoDealWidget({
 
   const handleParticipate = async (price?: number) => {
     const finalPrice = price || recommendedPrice;
+    const startTime = Date.now();
+    const isAiRecommended = !price || price === recommendedPrice;
     setLoading(true);
+
+    // Analytics: 참여 버튼 클릭
+    trackNegoDealParticipateClicked({
+      product_id: productId,
+      variant: 'unified',
+      target_price: finalPrice,
+      ai_recommended_price: recommendedPrice,
+      is_ai_recommended: isAiRecommended,
+      participant_count: demandData?.totalUsers || 0,
+      success_probability: successProbability,
+    });
 
     try {
       const request: CreatePriceTrackingRequest = {
@@ -154,6 +185,20 @@ export function NegoDealWidget({
       setParticipationId(data.trackingId);
       setIsParticipating(true);
 
+      // Analytics: 참여 완료
+      const timeToComplete = Date.now() - startTime;
+      trackNegoDealParticipateCompleted({
+        product_id: productId,
+        variant: 'unified',
+        target_price: finalPrice,
+        ai_recommended_price: recommendedPrice,
+        is_ai_recommended: isAiRecommended,
+        participant_count: data.similarUsersCount || 0,
+        success_probability: successProbability,
+        time_to_complete_ms: timeToComplete,
+        custom_price_used: price !== undefined && price !== recommendedPrice,
+      });
+
       toast.success('🎉 네고딜 참여 완료!', {
         description: `₩${finalPrice.toLocaleString()}에 ${data.similarUsersCount || 0}명과 함께 협상합니다`,
       });
@@ -170,6 +215,16 @@ export function NegoDealWidget({
       await loadDemandData();
     } catch (error: any) {
       console.error('Error participating:', error);
+
+      // Analytics: 에러 추적
+      trackNegoDealError({
+        product_id: productId,
+        variant: 'unified',
+        error_type: error.message?.includes('network') ? 'network' : 'api',
+        error_message: error.message || 'Unknown error',
+        stage: 'participation',
+      });
+
       toast.error('네고딜 참여 실패', {
         description: error.message || '다시 시도해주세요',
       });
@@ -408,7 +463,20 @@ export function NegoDealWidget({
 
                   <Slider
                     value={[targetPrice]}
-                    onValueChange={([value]) => setTargetPrice(value)}
+                    onValueChange={([value]) => {
+                      setTargetPrice(value);
+                      // Analytics: 커스텀 가격 설정
+                      if (value !== recommendedPrice) {
+                        trackNegoDealCustomPriceSet({
+                          product_id: productId,
+                          variant: 'unified',
+                          ai_recommended_price: recommendedPrice,
+                          custom_price: value,
+                          price_diff: value - recommendedPrice,
+                          price_diff_percent: ((value - recommendedPrice) / recommendedPrice) * 100,
+                        });
+                      }
+                    }}
                     min={priceMin}
                     max={priceMax}
                     step={1000}

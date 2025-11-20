@@ -27,7 +27,7 @@ import { recommendationService } from "@/lib/services/recommendation-service";
 import { analytics } from "@/lib/monitoring/posthog";
 import { SetTargetPriceWidget } from "@/components/price-tracking/SetTargetPriceWidget";
 import { NegoDealWidget } from "@/components/negodeal/NegoDealWidget";
-import { isFeatureEnabled } from "@/lib/feature-flags";
+import { isFeatureEnabled, isFeatureEnabledForUser } from "@/lib/feature-flags";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -41,6 +41,18 @@ export default function ProductDetailPage() {
 
   // Mock user ID (실제로는 로그인 시스템에서 가져옴)
   const userId = 'user-1';
+
+  // A/B 테스트: 롤아웃 비율 (환경변수로 제어)
+  const rolloutPercent = typeof window !== 'undefined'
+    ? parseInt(process.env.NEXT_PUBLIC_ROLLOUT_PERCENT || '100', 10)
+    : 100;
+
+  // 사용자별 Feature Flag 결정 (일관성 보장)
+  const showUnifiedNegoDeal = isFeatureEnabledForUser(
+    userId,
+    'unified_negodeal',
+    rolloutPercent
+  );
 
   useEffect(() => {
     if (params.id) {
@@ -69,9 +81,18 @@ export default function ProductDetailPage() {
         // Track product view analytics
         const lowestPrice = Math.min(...foundProduct.prices.map((p: any) => p.total));
         analytics.trackProductView(foundProduct.id, foundProduct.name, lowestPrice);
+
+        // Track A/B test variant assignment
+        analytics.track('ab_test_variant_assigned', {
+          experiment_name: 'unified_negodeal_rollout',
+          variant: showUnifiedNegoDeal ? 'unified' : 'legacy',
+          rollout_percent: rolloutPercent,
+          user_id: userId,
+          product_id: foundProduct.id,
+        });
       }
     }
-  }, [params.id]);
+  }, [params.id, showUnifiedNegoDeal, rolloutPercent]);
 
   const handleToggleWishlist = () => {
     if (product) {
@@ -193,9 +214,9 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* NegoDeal Widget - Feature Flag Toggle */}
+      {/* NegoDeal Widget - A/B Test with Gradual Rollout */}
       <div className="mb-8">
-        {isFeatureEnabled('unified_negodeal') ? (
+        {showUnifiedNegoDeal ? (
           <NegoDealWidget
             productId={product.id}
             productName={product.name}
