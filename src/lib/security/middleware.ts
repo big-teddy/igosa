@@ -10,7 +10,7 @@ import { applyRateLimit, rateLimiters } from './rate-limit';
 export interface SecurityConfig {
   enableCsrf?: boolean;
   enableRateLimit?: boolean;
-  rateLimitType?: 'strict' | 'standard' | 'generous' | 'auth' | 'search' | 'api';
+  rateLimitType?: 'chat' | 'search' | 'general' | 'authenticated' | 'priceTracking' | 'strict' | 'standard' | 'api';
   enableCors?: boolean;
   allowedOrigins?: string[];
   enableSecurityHeaders?: boolean;
@@ -90,7 +90,7 @@ export async function securityMiddleware(
   const {
     enableCsrf = true,
     enableRateLimit = true,
-    rateLimitType = 'standard',
+    rateLimitType = 'general',
     enableCors = false,
     allowedOrigins = [],
     enableSecurityHeaders = true,
@@ -108,14 +108,53 @@ export async function securityMiddleware(
   // Apply rate limiting
   if (enableRateLimit) {
     const limiter = rateLimiters[rateLimitType];
-    const rateLimitResult = await applyRateLimit(req, limiter);
 
-    if (rateLimitResult) {
-      // Rate limit exceeded
-      if (enableSecurityHeaders) {
-        return applySecurityHeaders(rateLimitResult);
+    // Check if it's a function (middleware) or Upstash Ratelimit object
+    if (typeof limiter === 'function') {
+      const rateLimitResult = await applyRateLimit(req, limiter);
+
+      if (rateLimitResult) {
+        // Rate limit exceeded
+        if (enableSecurityHeaders) {
+          return applySecurityHeaders(rateLimitResult);
+        }
+        return rateLimitResult;
       }
-      return rateLimitResult;
+    } else if (limiter && 'limit' in limiter) {
+      // Upstash Ratelimit object
+      const identifier = req.headers.get('x-user-id') ||
+                        req.headers.get('x-forwarded-for') ||
+                        req.ip ||
+                        'anonymous';
+
+      const { success, limit, remaining, reset } = await limiter.limit(identifier);
+
+      if (!success) {
+        const response = new NextResponse(
+          JSON.stringify({
+            error: 'Too Many Requests',
+            message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+            limit,
+            remaining: 0,
+            reset: new Date(reset).toISOString(),
+          }),
+          {
+            status: 429,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-RateLimit-Limit': limit.toString(),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': reset.toString(),
+              'Retry-After': Math.ceil((reset - Date.now()) / 1000).toString(),
+            },
+          }
+        );
+
+        if (enableSecurityHeaders) {
+          return applySecurityHeaders(response);
+        }
+        return response;
+      }
     }
   }
 

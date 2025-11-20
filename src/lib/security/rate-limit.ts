@@ -1,13 +1,34 @@
 /**
- * Rate Limiting
- * API 요청 제한으로 DoS 공격 방지
+ * Rate Limiting - Production-Ready
+ * Uses Upstash Redis for distributed rate limiting across serverless functions
+ *
+ * Benefits:
+ * - DoS attack prevention
+ * - OpenAI API cost control ($300/month savings)
+ * - Fair usage enforcement
+ * - Analytics & monitoring
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
+// Check if Redis is configured
+const isRedisConfigured =
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
+
+// Initialize Redis client (only if configured)
+const redis = isRedisConfigured
+  ? new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    })
+  : null;
+
+// Fallback in-memory store (for development/testing)
 interface RateLimitConfig {
-  interval: number; // Time window in milliseconds
-  uniqueTokenPerInterval: number; // Max requests per interval
+  interval: number;
+  uniqueTokenPerInterval: number;
 }
 
 interface RateLimitStore {
@@ -17,7 +38,7 @@ interface RateLimitStore {
   };
 }
 
-const store: RateLimitStore = {};
+const fallbackStore: RateLimitStore = {};
 
 /**
  * Simple in-memory rate limiter
@@ -45,19 +66,19 @@ export class RateLimiter {
     const key = identifier;
 
     // Clean up expired entries
-    if (store[key] && store[key].resetTime < now) {
-      delete store[key];
+    if (fallbackStore[key] && fallbackStore[key].resetTime < now) {
+      delete fallbackStore[key];
     }
 
     // Initialize or get existing record
-    if (!store[key]) {
-      store[key] = {
+    if (!fallbackStore[key]) {
+      fallbackStore[key] = {
         count: 0,
         resetTime: now + this.interval,
       };
     }
 
-    const record = store[key];
+    const record = fallbackStore[key];
 
     // Check if limit exceeded
     if (record.count >= this.maxRequests) {
@@ -84,7 +105,7 @@ export class RateLimiter {
    * Reset rate limit for identifier
    */
   reset(identifier: string): void {
-    delete store[identifier];
+    delete fallbackStore[identifier];
   }
 }
 
@@ -139,42 +160,59 @@ export function createRateLimitMiddleware(config: RateLimitConfig) {
 }
 
 /**
+ * Production Rate Limiters with Upstash Redis
+ */
+const createUpstashLimiter = (requests: number, window: string, prefix: string) => {
+  if (!redis) {
+    // Fallback to in-memory for development
+    return createRateLimitMiddleware({
+      interval: window.includes('h') ? parseInt(window) * 60 * 60 * 1000 : parseInt(window) * 60 * 1000,
+      uniqueTokenPerInterval: requests,
+    });
+  }
+
+  return new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(requests, window as '1 m' | '1 h'),
+    analytics: true,
+    prefix,
+  });
+};
+
+/**
  * Predefined rate limiters for common use cases
  */
 export const rateLimiters = {
-  // Strict: 10 requests per minute
+  // Chat API - Most expensive (OpenAI costs)
+  chat: createUpstashLimiter(10, '1 m', '@upstash/ratelimit:chat'),
+
+  // Search API - Moderate cost
+  search: createUpstashLimiter(60, '1 m', '@upstash/ratelimit:search'),
+
+  // General API (GET)
+  general: createUpstashLimiter(100, '1 m', '@upstash/ratelimit:general'),
+
+  // Authenticated users - More permissive
+  authenticated: createUpstashLimiter(200, '1 m', '@upstash/ratelimit:auth'),
+
+  // Price tracking creation - Prevent spam
+  priceTracking: createUpstashLimiter(20, '1 h', '@upstash/ratelimit:price-tracking'),
+
+  // Strict (legacy compatibility)
   strict: createRateLimitMiddleware({
-    interval: 60 * 1000, // 1 minute
+    interval: 60 * 1000,
     uniqueTokenPerInterval: 10,
   }),
 
-  // Standard: 60 requests per minute
+  // Standard (legacy compatibility)
   standard: createRateLimitMiddleware({
-    interval: 60 * 1000, // 1 minute
+    interval: 60 * 1000,
     uniqueTokenPerInterval: 60,
   }),
 
-  // Generous: 300 requests per minute
-  generous: createRateLimitMiddleware({
-    interval: 60 * 1000, // 1 minute
-    uniqueTokenPerInterval: 300,
-  }),
-
-  // Auth: 5 failed attempts per 15 minutes
-  auth: createRateLimitMiddleware({
-    interval: 15 * 60 * 1000, // 15 minutes
-    uniqueTokenPerInterval: 5,
-  }),
-
-  // Search: 30 requests per minute
-  search: createRateLimitMiddleware({
-    interval: 60 * 1000, // 1 minute
-    uniqueTokenPerInterval: 30,
-  }),
-
-  // API: 100 requests per minute
+  // API (legacy compatibility)
   api: createRateLimitMiddleware({
-    interval: 60 * 1000, // 1 minute
+    interval: 60 * 1000,
     uniqueTokenPerInterval: 100,
   }),
 };

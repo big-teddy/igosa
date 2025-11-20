@@ -26,6 +26,8 @@ import { RecommendationSection } from "@/components/recommendations/Recommendati
 import { recommendationService } from "@/lib/services/recommendation-service";
 import { analytics } from "@/lib/monitoring/posthog";
 import { SetTargetPriceWidget } from "@/components/price-tracking/SetTargetPriceWidget";
+import { NegoDealWidget } from "@/components/negodeal/NegoDealWidget";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -191,15 +193,25 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* Price Tracking Widget - NegoDeal 2.0 */}
+      {/* NegoDeal Widget - Feature Flag Toggle */}
       <div className="mb-8">
-        <SetTargetPriceWidget
-          productId={product.id}
-          productName={product.name}
-          currentPrice={Math.min(...product.prices.map((p: any) => p.total))}
-          minPrice={Math.min(...product.prices.map((p: any) => p.total)) * 0.9}
-          avgPrice={product.prices.reduce((acc: number, p: any) => acc + p.total, 0) / product.prices.length}
-        />
+        {isFeatureEnabled('unified_negodeal') ? (
+          <NegoDealWidget
+            productId={product.id}
+            productName={product.name}
+            currentPrice={Math.min(...product.prices.map((p: any) => p.total))}
+            minPrice={Math.min(...product.prices.map((p: any) => p.total)) * 0.9}
+            avgPrice={product.prices.reduce((acc: number, p: any) => acc + p.total, 0) / product.prices.length}
+          />
+        ) : (
+          <SetTargetPriceWidget
+            productId={product.id}
+            productName={product.name}
+            currentPrice={Math.min(...product.prices.map((p: any) => p.total))}
+            minPrice={Math.min(...product.prices.map((p: any) => p.total)) * 0.9}
+            avgPrice={product.prices.reduce((acc: number, p: any) => acc + p.total, 0) / product.prices.length}
+          />
+        )}
       </div>
 
       {/* Social Proof - Friend Purchases */}

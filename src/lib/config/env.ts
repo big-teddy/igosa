@@ -7,6 +7,11 @@ import { z } from 'zod';
 
 // 환경 변수 스키마 정의
 const envSchema = z.object({
+  // === Supabase ===
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(20).optional(),
+
   // === Database ===
   DATABASE_URL: z.string().url().optional(),
   DIRECT_URL: z.string().url().optional(),

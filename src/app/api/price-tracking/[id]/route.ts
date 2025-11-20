@@ -1,6 +1,6 @@
 /**
  * Price Tracking API Routes - Individual Tracking
- * 
+ *
  * GET /api/price-tracking/[id] - Get specific price tracking
  * PATCH /api/price-tracking/[id] - Update price tracking
  * DELETE /api/price-tracking/[id] - Delete price tracking
@@ -8,6 +8,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { z } from 'zod';
+
+// Validation schema for PATCH requests
+const updatePriceTrackingSchema = z.object({
+  target_price: z.number().positive().optional(),
+  status: z.enum(['active', 'paused', 'triggered', 'cancelled', 'expired']).optional(),
+  notification_channels: z.array(z.enum(['email', 'push', 'sms', 'kakao'])).optional(),
+  updated_at: z.string().datetime().optional(),
+}).strict(); // Reject any unknown fields
 
 /**
  * GET /api/price-tracking/[id]
@@ -62,6 +71,21 @@ export async function PATCH(
 ) {
   try {
     const body = await request.json();
+
+    // Validate input
+    const validationResult = updatePriceTrackingSchema.safeParse(body);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: 'Invalid request body',
+          details: validationResult.error.issues,
+        },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validationResult.data;
+
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -87,16 +111,10 @@ export async function PATCH(
       );
     }
 
-    // Update tracking
+    // Update tracking with validated data only
     const { data: updated, error: updateError } = await supabase
       .from('price_tracking')
-      .update({
-        ...body,
-        // Prevent updating certain fields
-        id: undefined,
-        user_id: undefined,
-        created_at: undefined,
-      })
+      .update(validatedData)
       .eq('id', params.id)
       .select()
       .single();

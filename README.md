@@ -149,8 +149,15 @@ npm run type-check
 
 ## 개발 문서
 
-상세한 개발 가이드는 `/docs` 폴더에서 확인하세요:
+### 📚 핵심 문서 (최신 업데이트)
 
+**배포 관련** (2025-01-19 업데이트)
+- 🚀 [Deployment Checklist](./docs/DEPLOYMENT_CHECKLIST.md) - **45분 빠른 배포 가이드**
+- 📖 [Deployment Guide](./docs/DEPLOYMENT_GUIDE.md) - 상세 배포 가이드 (트러블슈팅 포함)
+- ✅ [Implementation Summary](./docs/IMPLEMENTATION_SUMMARY.md) - 구현 완료 요약
+- 👨‍💼 [Senior Developer Recommendations](./docs/SENIOR_DEVELOPER_RECOMMENDATIONS.md) - 프로덕션 권장사항
+
+**설계 문서**
 1. [Product Requirements Document](./docs/01_PRD_Product_Requirements.md) - 제품 요구사항
 2. [Technical Architecture](./docs/02_Tech_Spec_Architecture.md) - 시스템 아키텍처
 3. [API Integration Guide](./docs/03_API_Integration_Guide.md) - API 연동 가이드

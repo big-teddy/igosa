@@ -7,13 +7,30 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut, Package, Users, Menu, Sparkles, Bell } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 
-const navItems = [
-  { href: "/feed", icon: Users, label: "친구 피드" },
-  { href: "/nego-deals", icon: TrendingDown, label: "공동구매" },
-  { href: "/products", icon: Package, label: "제품 둘러보기" },
-  { href: "/price-alerts", icon: Bell, label: "가격 알림" },
-];
+// Feature Flag에 따른 네비게이션 아이템
+const getNavItems = () => {
+  const useNewNavigation = isFeatureEnabled('new_navigation');
+
+  if (useNewNavigation) {
+    return [
+      { href: "/feed", icon: Users, label: "친구 피드" },
+      { href: "/negodeal", icon: Sparkles, label: "네고딜" },
+      { href: "/products", icon: Package, label: "제품 둘러보기" },
+    ];
+  }
+
+  // Legacy navigation
+  return [
+    { href: "/feed", icon: Users, label: "친구 피드" },
+    { href: "/nego-deals", icon: TrendingDown, label: "공동구매" },
+    { href: "/products", icon: Package, label: "제품 둘러보기" },
+    { href: "/price-alerts", icon: Bell, label: "가격 알림" },
+  ];
+};
+
+const navItems = getNavItems();
 
 export function Header() {
   const router = useRouter();

@@ -1,15 +1,61 @@
 import { Configuration, OpenAIApi } from 'openai-edge';
 import { OpenAIStream, StreamingTextResponse } from 'ai';
+import { z } from 'zod';
 import { searchProducts } from '@/lib/data/mock-products';
 import { getFriendPurchases, getSocialReviewsByProduct } from '@/lib/data/mock-social';
 import { getInfluencerReviewsByProduct, getInfluencerReviewSummary } from '@/lib/data/mock-influencer';
+import { rateLimiters } from '@/lib/security/rate-limit';
 
 // Edge Runtime for better performance
 export const runtime = 'edge';
 
+// Input validation schema
+const chatRequestSchema = z.object({
+  messages: z.array(z.object({
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string().min(1).max(4000),
+  })).min(1).max(20),
+  mode: z.enum(['price', 'ai']).default('price'),
+});
+
 export async function POST(req: Request) {
   try {
-    const { messages, mode = 'price' } = await req.json();
+    // 1. Rate Limit Check (prevent OpenAI API abuse)
+    const identifier = req.headers.get('x-user-id') ||
+                      req.headers.get('x-forwarded-for') ||
+                      'anonymous';
+
+    if (typeof rateLimiters.chat === 'object' && 'limit' in rateLimiters.chat) {
+      // Upstash Redis rate limiter
+      const { success, limit, remaining, reset } = await rateLimiters.chat.limit(identifier);
+
+      if (!success) {
+        return new Response(
+          JSON.stringify({
+            error: 'Too Many Requests',
+            message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+            limit,
+            remaining: 0,
+            reset: new Date(reset).toISOString(),
+          }),
+          {
+            status: 429,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-RateLimit-Limit': limit.toString(),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': reset.toString(),
+              'Retry-After': Math.ceil((reset - Date.now()) / 1000).toString(),
+            },
+          }
+        );
+      }
+    }
+
+    // 2. Validate input
+    const body = await req.json();
+    const validated = chatRequestSchema.parse(body);
+    const { messages, mode } = validated;
 
     // 모드별 시스템 프롬프트
     const basePurpose = `당신은 한국 쇼핑 전문가 AI 어시스턴트 "이거사"입니다.`;

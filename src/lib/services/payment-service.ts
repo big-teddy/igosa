@@ -22,6 +22,7 @@ import type {
   SHIPPING_METHOD_INFO,
 } from '@/types/payment';
 import { SHIPPING_METHOD_INFO as shippingInfo } from '@/types/payment';
+import { atomicUpdate, getStorageItem, setStorageItem } from '@/lib/utils/safe-storage';
 
 const CART_KEY = 'igosa_cart';
 const ORDERS_KEY = 'igosa_orders';
@@ -46,10 +47,7 @@ class PaymentService {
    */
   getCart(userId: string): CartItem[] {
     try {
-      const stored = localStorage.getItem(CART_KEY);
-      if (!stored) return [];
-
-      const allCarts: { userId: string; items: CartItem[] }[] = JSON.parse(stored);
+      const allCarts = getStorageItem<{ userId: string; items: CartItem[] }[]>(CART_KEY) || [];
       const userCart = allCarts.find((c) => c.userId === userId);
       return userCart?.items || [];
     } catch (error) {
@@ -142,16 +140,25 @@ class PaymentService {
    */
   private saveCart(userId: string, items: CartItem[]): void {
     try {
-      const stored = localStorage.getItem(CART_KEY);
-      let allCarts: { userId: string; items: CartItem[] }[] = stored ? JSON.parse(stored) : [];
+      // Use atomic update to prevent race conditions
+      const success = atomicUpdate<{ userId: string; items: CartItem[] }[]>(
+        CART_KEY,
+        (current) => {
+          let allCarts = current || [];
 
-      // Remove existing cart for user
-      allCarts = allCarts.filter((c) => c.userId !== userId);
+          // Remove existing cart for user
+          allCarts = allCarts.filter((c) => c.userId !== userId);
 
-      // Add updated cart
-      allCarts.push({ userId, items });
+          // Add updated cart
+          allCarts.push({ userId, items });
 
-      localStorage.setItem(CART_KEY, JSON.stringify(allCarts));
+          return allCarts;
+        }
+      );
+
+      if (!success) {
+        console.error('Failed to save cart after retries');
+      }
     } catch (error) {
       console.error('Failed to save cart:', error);
     }
@@ -272,10 +279,7 @@ class PaymentService {
    */
   getOrderById(orderId: string): Order | null {
     try {
-      const stored = localStorage.getItem(ORDERS_KEY);
-      if (!stored) return null;
-
-      const orders: Order[] = JSON.parse(stored);
+      const orders = getStorageItem<Order[]>(ORDERS_KEY) || [];
       return orders.find((o) => o.id === orderId) || null;
     } catch (error) {
       console.error('Failed to get order:', error);
@@ -288,10 +292,7 @@ class PaymentService {
    */
   getUserOrders(userId: string): Order[] {
     try {
-      const stored = localStorage.getItem(ORDERS_KEY);
-      if (!stored) return [];
-
-      const orders: Order[] = JSON.parse(stored);
+      const orders = getStorageItem<Order[]>(ORDERS_KEY) || [];
       return orders
         .filter((o) => o.userId === userId)
         .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
@@ -354,10 +355,15 @@ class PaymentService {
    */
   private saveOrder(order: Order): void {
     try {
-      const stored = localStorage.getItem(ORDERS_KEY);
-      const orders: Order[] = stored ? JSON.parse(stored) : [];
-      orders.push(order);
-      localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+      const success = atomicUpdate<Order[]>(ORDERS_KEY, (current) => {
+        const orders = current || [];
+        orders.push(order);
+        return orders;
+      });
+
+      if (!success) {
+        console.error('Failed to save order after retries');
+      }
     } catch (error) {
       console.error('Failed to save order:', error);
     }
@@ -368,15 +374,21 @@ class PaymentService {
    */
   private updateOrder(order: Order): void {
     try {
-      const stored = localStorage.getItem(ORDERS_KEY);
-      if (!stored) return;
+      const success = atomicUpdate<Order[]>(ORDERS_KEY, (current) => {
+        const orders = current || [];
+        const index = orders.findIndex((o) => o.id === order.id);
 
-      let orders: Order[] = JSON.parse(stored);
-      const index = orders.findIndex((o) => o.id === order.id);
+        if (index >= 0) {
+          const updated = [...orders];
+          updated[index] = order;
+          return updated;
+        }
 
-      if (index >= 0) {
-        orders[index] = order;
-        localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+        return orders;
+      });
+
+      if (!success) {
+        console.error('Failed to update order after retries');
       }
     } catch (error) {
       console.error('Failed to update order:', error);
@@ -390,10 +402,7 @@ class PaymentService {
    */
   getShippingAddresses(userId: string): ShippingAddress[] {
     try {
-      const stored = localStorage.getItem(ADDRESSES_KEY);
-      if (!stored) return [];
-
-      const allAddresses: { userId: string; addresses: ShippingAddress[] }[] = JSON.parse(stored);
+      const allAddresses = getStorageItem<{ userId: string; addresses: ShippingAddress[] }[]>(ADDRESSES_KEY) || [];
       const userAddresses = allAddresses.find((a) => a.userId === userId);
       return userAddresses?.addresses || [];
     } catch (error) {
@@ -474,16 +483,24 @@ class PaymentService {
    */
   private saveShippingAddresses(userId: string, addresses: ShippingAddress[]): void {
     try {
-      const stored = localStorage.getItem(ADDRESSES_KEY);
-      let allAddresses: { userId: string; addresses: ShippingAddress[] }[] = stored ? JSON.parse(stored) : [];
+      const success = atomicUpdate<{ userId: string; addresses: ShippingAddress[] }[]>(
+        ADDRESSES_KEY,
+        (current) => {
+          let allAddresses = current || [];
 
-      // Remove existing addresses for user
-      allAddresses = allAddresses.filter((a) => a.userId !== userId);
+          // Remove existing addresses for user
+          allAddresses = allAddresses.filter((a) => a.userId !== userId);
 
-      // Add updated addresses
-      allAddresses.push({ userId, addresses });
+          // Add updated addresses
+          allAddresses.push({ userId, addresses });
 
-      localStorage.setItem(ADDRESSES_KEY, JSON.stringify(allAddresses));
+          return allAddresses;
+        }
+      );
+
+      if (!success) {
+        console.error('Failed to save shipping addresses after retries');
+      }
     } catch (error) {
       console.error('Failed to save shipping addresses:', error);
     }
@@ -529,9 +546,11 @@ class PaymentService {
    * Clear all data (for testing)
    */
   clearAllData(): void {
-    localStorage.removeItem(CART_KEY);
-    localStorage.removeItem(ORDERS_KEY);
-    localStorage.removeItem(ADDRESSES_KEY);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(CART_KEY);
+      localStorage.removeItem(ORDERS_KEY);
+      localStorage.removeItem(ADDRESSES_KEY);
+    }
   }
 }
 
