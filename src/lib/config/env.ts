@@ -8,8 +8,8 @@ import { z } from 'zod';
 // 환경 변수 스키마 정의
 const envSchema = z.object({
   // === Supabase ===
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20).optional(),
 
   // === Database ===
@@ -68,6 +68,14 @@ export type Env = z.infer<typeof envSchema>;
 
 // 환경 변수 검증 및 파싱
 function validateEnv(): Env {
+  // 빌드 타임에는 검증 스킵 (환경변수는 런타임에 Vercel에서 주입됨)
+  const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
+
+  if (isBuildTime) {
+    console.log('⏭️  Skipping env validation during build (runtime env vars will be injected)');
+    return process.env as Env;
+  }
+
   try {
     return envSchema.parse(process.env);
   } catch (error) {
@@ -75,8 +83,8 @@ function validateEnv(): Env {
       console.error('❌ Invalid environment variables:');
       console.error(JSON.stringify(error.issues, null, 2));
 
-      // 개발 환경에서는 경고만 표시
-      if (process.env.NODE_ENV === 'development') {
+      // 개발 환경에서는 경고만
+      if (process.env.NODE_ENV !== 'production') {
         console.warn('⚠️  Continuing with invalid env vars in development mode');
         return process.env as Env;
       }
