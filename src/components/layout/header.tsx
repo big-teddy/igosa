@@ -16,7 +16,7 @@ const getNavItems = () => {
   if (useNewNavigation) {
     return [
       { href: "/feed", icon: Users, label: "친구 피드" },
-      { href: "/negodeal", icon: Sparkles, label: "네고딜" },
+      { href: "/nego-deals", icon: Sparkles, label: "네고딜" },
       { href: "/products", icon: Package, label: "제품 둘러보기" },
     ];
   }
