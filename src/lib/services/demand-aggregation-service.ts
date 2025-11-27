@@ -119,7 +119,8 @@ export async function getDemandAggregation(
 
   for (let i = 0; i < entries.length; i += 2) {
     const member = entries[i] as string;
-    const price = entries[i + 1] as number;
+    const score = entries[i + 1];
+    const price = typeof score === 'number' ? score : parseFloat(score as string);
 
     const userId = member.split(':')[0];
     const bucket = Math.floor(price / 10000) * 10000;
