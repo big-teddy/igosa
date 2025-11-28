@@ -50,3 +50,11 @@ next-env.d.ts
 .DS_Store
 Thumbs.db
 .env.local
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Supabase
+/supabase/.temp/
