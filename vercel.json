@@ -5,11 +5,5 @@
   "framework": "nextjs",
   "regions": [
     "icn1"
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/trigger-negotiations",
-      "schedule": "0 0 * * *"
-    }
   ]
 }
