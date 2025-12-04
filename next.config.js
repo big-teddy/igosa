@@ -4,7 +4,20 @@ const { withSentryConfig } = require('@sentry/nextjs');
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['thumbnail.coupangcdn.com', 'shopping-phinf.pstatic.net', 'images.unsplash.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'thumbnail.coupangcdn.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'shopping-phinf.pstatic.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+    ],
   },
   experimental: {
     serverActions: {

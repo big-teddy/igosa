@@ -2,7 +2,9 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { ExternalLink, ChevronDown, ChevronUp, ShoppingCart, Star, TrendingDown } from 'lucide-react';
+import { ExternalLink, ChevronDown, ChevronUp, ShoppingCart, Star, TrendingDown, MessageCircle, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { ProductRecommendationCard as ProductCard } from '@/types/rich-card';
 import { TrustIndicator } from './TrustIndicator';
 import { FriendReviewSection } from './FriendReviewSection';
@@ -18,6 +20,57 @@ interface ProductRecommendationCardProps {
 export function ProductRecommendationCard({ card, index = 0 }: ProductRecommendationCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showAllPrices, setShowAllPrices] = useState(false);
+  const [isNegotiating, setIsNegotiating] = useState(false);
+  const router = useRouter();
+
+  const handleStartNegotiation = async () => {
+    setIsNegotiating(true);
+    try {
+      // Mock user ID for now - in real app, use auth context
+      const userId = 'user-1';
+
+      const response = await fetch('/api/negotiations/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          productId: card.product.id,
+          initialPrice: card.product.lowestPrice.total,
+          productName: card.product.name,
+          productImage: card.product.image,
+          forceTrigger: true, // For MVP/Demo: Allow immediate trigger
+        }),
+      });
+
+      if (response.status === 409) {
+        // Already exists, redirect to it
+        const data = await response.json();
+        if (data.negotiationId) {
+          toast.info('이미 진행 중인 협상으로 이동합니다.');
+          router.push(`/negotiations/${data.negotiationId}`);
+          return;
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to start negotiation');
+      }
+
+      const data = await response.json();
+      if (data.success && data.negotiationId) {
+        toast.success('AI 협상을 시작합니다!');
+        console.log('[Debug] Navigating to:', `/negotiations/${data.negotiationId}`);
+        router.push(`/negotiations/${data.negotiationId}`);
+      } else {
+        throw new Error(data.error || 'Failed to start negotiation');
+      }
+    } catch (error) {
+      console.error('Negotiation error:', error);
+      toast.error('협상을 시작할 수 없습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setIsNegotiating(false);
+    }
+  };
 
   const { product, trustScore, friendReviews, influencerReviews, influencerSummary, reasoningChain, mode } = card;
 
@@ -149,6 +202,21 @@ export function ProductRecommendationCard({ card, index = 0 }: ProductRecommenda
                     <ExternalLink className="w-4 h-4" />
                   </motion.a>
 
+                  <motion.button
+                    onClick={handleStartNegotiation}
+                    disabled={isNegotiating}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {isNegotiating ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <MessageCircle className="w-5 h-5" />
+                    )}
+                    <span className="whitespace-nowrap">AI 네고 시작하기</span>
+                  </motion.button>
+
                   {product.allPrices.length > 1 && (
                     <motion.button
                       onClick={() => setShowAllPrices(!showAllPrices)}
@@ -179,11 +247,10 @@ export function ProductRecommendationCard({ card, index = 0 }: ProductRecommenda
                   {product.allPrices.map((price, idx) => (
                     <div
                       key={idx}
-                      className={`flex items-center justify-between p-3 rounded-lg transition-all ${
-                        price.platform === product.lowestPrice.platform
-                          ? 'bg-green-50 border border-green-200'
-                          : 'bg-gray-50 border border-transparent hover:border-gray-200'
-                      }`}
+                      className={`flex items-center justify-between p-3 rounded-lg transition-all ${price.platform === product.lowestPrice.platform
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-gray-50 border border-transparent hover:border-gray-200'
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <span className="font-medium text-gray-900">{price.platform}</span>

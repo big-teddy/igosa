@@ -85,6 +85,18 @@ export function useNegotiation(id: string) {
         // Initial fetch
         fetchData();
 
+        // Skip Realtime subscription in test/E2E environments
+        // This prevents hanging in Playwright tests where Supabase Realtime cannot connect
+        const isTestEnv = process.env.NODE_ENV === 'test' ||
+            typeof window !== 'undefined' && window.navigator.webdriver;
+
+        if (isTestEnv) {
+            console.log('[useNegotiation] Skipping Realtime subscription in test environment');
+            return () => {
+                isMounted = false;
+            };
+        }
+
         // Subscribe to changes
         const channel = supabase
             .channel(`negotiation:${id}`)

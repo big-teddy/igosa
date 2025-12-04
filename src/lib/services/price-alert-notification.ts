@@ -6,6 +6,7 @@
  */
 
 import type { NotificationChannel, PriceAlertEvent } from '@/types/price-tracking';
+import { logger } from '@/lib/logger';
 
 export interface SendPriceAlertParams {
   userId: string;
@@ -115,14 +116,15 @@ async function sendEmailNotification(
     const emailBody = generatePriceAlertEmail(userName, event);
     const subject = `🎯 가격 알림: ${event.productName}`;
 
-    // Mock email sending (logs to console)
-    console.log('📧 Price Alert Email Mock:');
-    console.log('  To:', email);
-    console.log('  Subject:', subject);
-    console.log('  Product:', event.productName);
-    console.log('  Target Price:', `₩${event.targetPrice.toLocaleString()}`);
-    console.log('  Current Price:', `₩${event.currentPrice.toLocaleString()}`);
-    console.log('  Savings:', `₩${event.priceDropAmount.toLocaleString()} (${event.priceDropPercentage.toFixed(1)}%)`);
+    // Mock email sending (logs for development)
+    logger.info('📧 Price Alert Email', {
+      to: email,
+      subject,
+      product: event.productName,
+      targetPrice: event.targetPrice,
+      currentPrice: event.currentPrice,
+      savings: event.priceDropAmount,
+    });
 
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -148,7 +150,7 @@ async function sendEmailNotification(
       messageId: `mock-email-${Date.now()}`,
     };
   } catch (error: any) {
-    console.error('Email notification error:', error);
+    logger.error('Email notification error', error);
     return {
       success: false,
       channel: 'email',
@@ -164,10 +166,11 @@ async function sendPushNotification(
   userId: string,
   event: PriceAlertEvent
 ): Promise<NotificationResult> {
-  console.log('📱 Push Notification Mock:');
-  console.log('  User ID:', userId);
-  console.log('  Title:', `가격 알림: ${event.productName}`);
-  console.log('  Body:', `₩${event.currentPrice.toLocaleString()}로 떨어졌어요! (${event.priceDropPercentage.toFixed(1)}% 할인)`);
+  logger.info('📱 Push Notification', {
+    userId,
+    title: `가격 알림: ${event.productName}`,
+    body: `₩${event.currentPrice.toLocaleString()}로 떨어졌어요! (${event.priceDropPercentage.toFixed(1)}% 할인)`,
+  });
 
   return {
     success: true,
@@ -203,7 +206,7 @@ export const priceAlertNotification = {
           break;
 
         case 'kakao':
-          console.log('📲 Kakao notification not implemented');
+          logger.warn('📲 Kakao notification not implemented');
           result = {
             success: false,
             channel: 'kakao',
@@ -212,7 +215,7 @@ export const priceAlertNotification = {
           break;
 
         case 'sms':
-          console.log('📱 SMS notification not implemented');
+          logger.warn('📱 SMS notification not implemented');
           result = {
             success: false,
             channel: 'sms',

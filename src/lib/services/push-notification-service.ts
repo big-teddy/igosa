@@ -153,16 +153,14 @@ export class PushNotificationService {
             body: payload.body,
         });
 
-        // Mock: 개발 환경에서는 콘솔에 출력
+        // Mock: 개발 환경에서는 debug 로그
         if (process.env.NODE_ENV === 'development') {
-            console.log('\n🔔 Push Notification Preview:');
-            console.log('User:', userId);
-            console.log('Title:', payload.title);
-            console.log('Body:', payload.body);
-            if (payload.data) {
-                console.log('Data:', payload.data);
-            }
-            console.log('---\n');
+            logger.debug('Push Notification Preview', {
+                userId,
+                title: payload.title,
+                body: payload.body,
+                data: payload.data,
+            });
         }
 
         // TODO: DB에 알림 기록 저장

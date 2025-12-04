@@ -6,18 +6,27 @@
 import { z } from 'zod';
 
 // 환경 변수 스키마 정의
+// Production 환경에서는 필수, Development에서는 optional
+const isProd = process.env.NODE_ENV === 'production';
+
 const envSchema = z.object({
-  // === Supabase ===
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20).optional(),
+  // === Supabase (프로덕션 필수) ===
+  NEXT_PUBLIC_SUPABASE_URL: isProd
+    ? z.string().url()
+    : z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: isProd
+    ? z.string().min(20)
+    : z.string().min(20).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20).optional(),
 
   // === Database ===
   DATABASE_URL: z.string().url().optional(),
   DIRECT_URL: z.string().url().optional(),
 
-  // === AI Models ===
-  OPENAI_API_KEY: z.string().min(20).optional(),
+  // === AI Models (프로덕션에서 OpenAI 필수) ===
+  OPENAI_API_KEY: isProd
+    ? z.string().min(20)
+    : z.string().min(20).optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   GOOGLE_AI_API_KEY: z.string().optional(),
   UPSTAGE_API_KEY: z.string().optional(),

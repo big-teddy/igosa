@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAINegotiationEngine } from '@/lib/ai/negotiation-engine';
 import { NegotiationService } from '@/lib/services/negotiation-service';
 import { withErrorHandling } from '@/lib/errors/api-error-handler';
+import { withSecurity } from '@/lib/security/middleware';
 import { success, error as errorResponse } from '@/lib/api/response-helpers';
 import { logger } from '@/lib/logger';
 import type { TriggerNegotiationRequest, TriggerNegotiationResponse } from '@/types/negotiation';
@@ -86,4 +87,8 @@ async function handler(request: NextRequest) {
     return success(response.data, 201);
 }
 
-export const POST = withErrorHandling(handler);
+export const POST = withSecurity(withErrorHandling(handler), {
+    enableCsrf: true,
+    enableRateLimit: true,
+    rateLimitType: 'api',
+});
