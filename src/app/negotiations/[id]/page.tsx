@@ -3,6 +3,7 @@
 import { useNegotiation } from '@/hooks/useNegotiation';
 import { NegotiationTimeline } from '@/components/negotiations/NegotiationTimeline';
 import { ShareButton } from '@/components/negotiations/ShareButton';
+import { PaymentButton } from '@/components/payments/PaymentButton';
 import { SocialProof } from '@/components/negotiations/SocialProof';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -182,12 +183,7 @@ export default function NegotiationDetailPage({
                             <CardTitle>액션</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            {negotiation.status === 'accepted' && (
-                                <Button className="w-full" size="lg">
-                                    <ShoppingCart className="w-4 h-4 mr-2" />
-                                    구매하기
-                                </Button>
-                            )}
+                            <PaymentButton negotiation={negotiation} />
                             <ShareButton negotiation={negotiation} variant="outline" size="default" className="w-full" />
                         </CardContent>
                     </Card>
