@@ -2,6 +2,8 @@
 
 import { useNegotiation } from '@/hooks/useNegotiation';
 import { NegotiationTimeline } from '@/components/negotiations/NegotiationTimeline';
+import { ShareButton } from '@/components/negotiations/ShareButton';
+import { SocialProof } from '@/components/negotiations/SocialProof';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,8 +14,6 @@ import {
     ArrowLeft,
     Users,
     TrendingDown,
-    Clock,
-    Share2,
     ShoppingCart
 } from 'lucide-react';
 import Link from 'next/link';
@@ -165,13 +165,14 @@ export default function NegotiationDetailPage({
                                 참여 현황
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="space-y-4">
                             <div className="text-center py-4">
                                 <p className="text-4xl font-bold text-primary">
                                     {negotiation.totalParticipants}
                                 </p>
                                 <p className="text-sm text-muted-foreground mt-2">명 참여 중</p>
                             </div>
+                            <SocialProof negotiationId={negotiation.id} />
                         </CardContent>
                     </Card>
 
@@ -187,10 +188,7 @@ export default function NegotiationDetailPage({
                                     구매하기
                                 </Button>
                             )}
-                            <Button variant="outline" className="w-full">
-                                <Share2 className="w-4 h-4 mr-2" />
-                                친구에게 공유
-                            </Button>
+                            <ShareButton negotiation={negotiation} variant="outline" size="default" className="w-full" />
                         </CardContent>
                     </Card>
 
