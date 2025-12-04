@@ -20,6 +20,7 @@ export interface RedisClient {
   set(key: string, value: string, options?: any): Promise<string>;
   del(...keys: string[]): Promise<number>;
   expire(key: string, seconds: number): Promise<number>;
+  keys(pattern: string): Promise<string[]>;
 }
 
 // Singleton clients
@@ -31,7 +32,7 @@ let clientType: 'upstash' | 'railway' | 'mock' | null = null;
  * Wrapper for Railway Redis (ioredis) to match Upstash API
  */
 class RailwayRedisAdapter implements RedisClient {
-  constructor(private client: Redis) {}
+  constructor(private client: Redis) { }
 
   async zadd(key: string, ...args: any[]): Promise<number> {
     // Handle both formats: zadd(key, {score, member}) and zadd(key, score, member)
@@ -74,6 +75,10 @@ class RailwayRedisAdapter implements RedisClient {
   async expire(key: string, seconds: number): Promise<number> {
     return this.client.expire(key, seconds);
   }
+
+  async keys(pattern: string): Promise<string[]> {
+    return this.client.keys(pattern);
+  }
 }
 
 /**
@@ -87,6 +92,7 @@ const mockClient: RedisClient = {
   set: async () => 'OK',
   del: async () => 1,
   expire: async () => 1,
+  keys: async () => [],
 };
 
 /**
