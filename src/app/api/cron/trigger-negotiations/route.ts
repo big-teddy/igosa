@@ -10,7 +10,7 @@ import { getAINegotiationEngine } from '@/lib/ai/negotiation-engine';
 import { NotificationHelper } from '@/lib/services/notification-helper';
 import { logger } from '@/lib/logger';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs'; // Changed from 'edge' to support ioredis
 export const dynamic = 'force-dynamic';
 
 /**
