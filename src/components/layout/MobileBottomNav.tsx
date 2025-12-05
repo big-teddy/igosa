@@ -10,7 +10,7 @@ const navItems = [
     { href: '/', icon: Home, label: '홈' },
     { href: '/products', icon: Search, label: '검색' },
     { href: '/nego-deals', icon: ShoppingBag, label: '네고딜' },
-    { href: '/price-alerts', icon: Bell, label: '알림' },
+    { href: '/notifications', icon: Bell, label: '알림' },
     { href: '/my', icon: User, label: '마이' },
 ];
 
