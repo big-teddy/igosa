@@ -96,6 +96,8 @@ export default [
             "*.setup.js",
             "supabase/**",
             "scripts/**",
+            "next.config.optimized.js",
+            ".github/**",
         ],
     },
 ];
