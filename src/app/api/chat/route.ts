@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
   try {
+    // Authentication check
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized', message: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
     const apiKey = process.env.OPENAI_API_KEY;
     const body = await req.json();
     const { messages } = body;
@@ -67,7 +80,7 @@ export async function POST(req: NextRequest) {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Chat API Error:', error);
+    logger.error('Chat API Error', error as Error, { userId: 'unknown' });
     return new NextResponse(
       JSON.stringify({ error: 'Internal Server Error', details: errorMessage }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

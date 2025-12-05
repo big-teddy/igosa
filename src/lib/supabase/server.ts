@@ -18,8 +18,9 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) => {
               cookieStore.set(name, value, options);
             });
-          } catch (error) {
-            // Server Component에서는 cookies를 설정할 수 없음
+          } catch {
+            // Server Components에서는 cookies를 설정할 수 없음 - 이는 예상된 동작
+            // Route Handlers나 Server Actions에서만 가능
           }
         },
       },
