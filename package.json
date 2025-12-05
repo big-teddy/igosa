@@ -19,7 +19,9 @@
     "test:e2e:debug": "playwright test --debug",
     "test:all": "npm run test && npm run test:integration && npm run test:e2e",
     "quick:setup": "node scripts/quick-setup.js",
-    "quick:test": "node scripts/quick-test.js"
+    "quick:test": "node scripts/quick-test.js",
+    "test:perf": "npx ts-node scripts/performance-test.ts",
+    "test:load": "npx ts-node scripts/load-test.ts"
   },
   "keywords": [
     "ai",
