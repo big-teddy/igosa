@@ -1,0 +1,18 @@
+{
+    "HomePage": {
+        "title": "이거사",
+        "subtitle": "AI 쇼핑 에이전트"
+    },
+    "Navigation": {
+        "home": "홈",
+        "chat": "채팅",
+        "deals": "네고딜",
+        "my": "마이"
+    },
+    "Common": {
+        "loading": "로딩 중...",
+        "error": "오류가 발생했습니다",
+        "confirm": "확인",
+        "cancel": "취소"
+    }
+}

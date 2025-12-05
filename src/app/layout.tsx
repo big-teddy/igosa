@@ -3,6 +3,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import { PostHogProvider } from "@/lib/monitoring/posthog";
 import { WebVitals } from "./web-vitals";
+import { I18nProvider } from "@/contexts/i18n-context";
 
 export const metadata: Metadata = {
   title: "이거사 - AI 쇼핑 에이전트",
@@ -25,8 +26,14 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <PostHogProvider>
+
+
+          // ...
+
           <WebVitals />
-          {children}
+          <I18nProvider>
+            {children}
+          </I18nProvider>
           <Toaster position="top-center" richColors closeButton />
         </PostHogProvider>
       </body>

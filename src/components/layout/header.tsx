@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { MessageSquare, ShoppingCart, TrendingDown, User, LogOut, Package, Users, Menu, Sparkles, Bell } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 
 // Feature Flag에 따른 네비게이션 아이템
@@ -107,6 +108,7 @@ export function Header() {
 
           {/* Right Side - User Actions */}
           <div className="flex items-center gap-2">
+            <LanguageSwitcher />
             {user ? (
               <>
                 {/* Notification Bell */}
@@ -182,84 +184,89 @@ export function Header() {
                   <Menu className="h-6 w-6" />
                 </Button>
               </SheetTrigger>
-            <SheetContent side="right" className="w-[300px]">
-              <SheetHeader>
-                <SheetTitle className="text-left">메뉴</SheetTitle>
-              </SheetHeader>
-              <nav className="flex flex-col gap-4 mt-8">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  const active = isActive(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`
+              <SheetContent side="right" className="w-[300px]">
+                <SheetHeader>
+                  <SheetTitle className="text-left flex items-center justify-between">
+                    <span>메뉴</span>
+                    <div className="mr-8 scale-90">
+                      <LanguageSwitcher />
+                    </div>
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-col gap-4 mt-8">
+                  {navItems.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`
                         flex items-center gap-3 px-4 py-3 rounded-lg
                         transition-all duration-200
                         hover:bg-accent hover:text-accent-foreground
                         ${active ? 'bg-accent text-accent-foreground font-medium' : 'text-muted-foreground'}
                       `}
-                    >
-                      <Icon className="h-5 w-5" />
-                      {item.label}
-                    </Link>
-                  );
-                })}
+                      >
+                        <Icon className="h-5 w-5" />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
 
-                <div className="border-t my-4" />
+                  <div className="border-t my-4" />
 
-                {user ? (
-                  <>
-                    <Link
-                      href="/my"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-accent transition-all duration-200"
-                    >
-                      <User className="h-5 w-5" />
-                      마이페이지
-                    </Link>
-                    <Link
-                      href="/orders"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-accent transition-all duration-200"
-                    >
-                      <Package className="h-5 w-5" />
-                      주문내역
-                    </Link>
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-all duration-200 text-left"
-                    >
-                      <LogOut className="h-5 w-5" />
-                      로그아웃
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href="/login"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <Button variant="outline" className="w-full justify-start gap-2">
-                        로그인
-                      </Button>
-                    </Link>
-                    <Link
-                      href="/signup"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <Button className="w-full justify-start gap-2 bg-gradient-to-r from-primary to-accent">
-                        시작하기
-                      </Button>
-                    </Link>
-                  </>
-                )}
-              </nav>
+                  {user ? (
+                    <>
+                      <Link
+                        href="/my"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-accent transition-all duration-200"
+                      >
+                        <User className="h-5 w-5" />
+                        마이페이지
+                      </Link>
+                      <Link
+                        href="/orders"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-accent transition-all duration-200"
+                      >
+                        <Package className="h-5 w-5" />
+                        주문내역
+                      </Link>
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setMobileMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-all duration-200 text-left"
+                      >
+                        <LogOut className="h-5 w-5" />
+                        로그아웃
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href="/login"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Button variant="outline" className="w-full justify-start gap-2">
+                          로그인
+                        </Button>
+                      </Link>
+                      <Link
+                        href="/signup"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Button className="w-full justify-start gap-2 bg-gradient-to-r from-primary to-accent">
+                          시작하기
+                        </Button>
+                      </Link>
+                    </>
+                  )}
+                </nav>
               </SheetContent>
             </Sheet>
           </div>
