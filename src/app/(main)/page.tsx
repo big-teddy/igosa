@@ -205,7 +205,7 @@ export default function Home() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let aiResponse = '';
-      let currentResult: any = null;
+      const currentResult: any = null;
 
       setIsTyping(false);
 

@@ -30,7 +30,8 @@ export function escapeHtml(input: string): string {
  * SQL 인젝션 방지용 문자열 이스케이프
  */
 export function escapeSql(input: string): string {
-  return input.replace(/[\0\x08\x09\x1a\n\r"'\\\%]/g, (char) => {
+  // eslint-disable-next-line no-control-regex
+  return input.replace(/[\0\x08\x09\x1a\n\r"'\\%]/g, (char) => {
     switch (char) {
       case '\0':
         return '\\0';

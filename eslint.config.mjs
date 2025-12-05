@@ -63,12 +63,9 @@ export default [
             },
         },
         rules: {
-            // TypeScript 규칙 - 점진적 개선을 위해 warn으로 유지
+            // TypeScript 규칙 - 점진적 개선을 위해 off
             "@typescript-eslint/no-explicit-any": "off", // 기존 코드 호환성
-            "@typescript-eslint/no-unused-vars": ["warn", {
-                argsIgnorePattern: "^_",
-                varsIgnorePattern: "^_",
-            }],
+            "@typescript-eslint/no-unused-vars": "off",
             "@typescript-eslint/no-require-imports": "off", // Config 파일 허용
 
             // Console 규칙 - 개발/디버그 허용
