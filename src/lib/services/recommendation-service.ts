@@ -83,7 +83,7 @@ class RecommendationService {
   updateUserPreferences(userId: string, updates: Partial<UserPreference>): void {
     try {
       const stored = localStorage.getItem(PREFERENCES_KEY);
-      let allPreferences: UserPreference[] = stored ? JSON.parse(stored) : [];
+      const allPreferences: UserPreference[] = stored ? JSON.parse(stored) : [];
 
       const index = allPreferences.findIndex((p) => p.userId === userId);
       const current = index >= 0 ? allPreferences[index] : this.createDefaultPreferences(userId);

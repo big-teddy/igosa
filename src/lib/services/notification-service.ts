@@ -241,7 +241,7 @@ class NotificationService {
   savePreferences(preferences: NotificationPreferences): void {
     try {
       const stored = localStorage.getItem(PREFERENCES_KEY);
-      let allPrefs: NotificationPreferences[] = stored ? JSON.parse(stored) : [];
+      const allPrefs: NotificationPreferences[] = stored ? JSON.parse(stored) : [];
 
       const index = allPrefs.findIndex((p) => p.userId === preferences.userId);
       if (index >= 0) {

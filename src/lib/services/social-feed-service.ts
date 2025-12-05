@@ -136,7 +136,7 @@ class SocialFeedService {
   toggleLike(postId: string, userId: string): boolean {
     try {
       const stored = localStorage.getItem(LIKES_KEY);
-      let likes: FeedInteraction[] = stored ? JSON.parse(stored) : [];
+      const likes: FeedInteraction[] = stored ? JSON.parse(stored) : [];
 
       const existingIndex = likes.findIndex(
         (like) => like.postId === postId && like.userId === userId
@@ -226,7 +226,7 @@ class SocialFeedService {
   toggleBookmark(postId: string, userId: string): boolean {
     try {
       const stored = localStorage.getItem(BOOKMARKS_KEY);
-      let bookmarks: FeedInteraction[] = stored ? JSON.parse(stored) : [];
+      const bookmarks: FeedInteraction[] = stored ? JSON.parse(stored) : [];
 
       const existingIndex = bookmarks.findIndex(
         (bm) => bm.postId === postId && bm.userId === userId

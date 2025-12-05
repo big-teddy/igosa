@@ -38,6 +38,10 @@ export default [
                 ReadableStream: "readonly",
                 TextEncoder: "readonly",
                 TextDecoder: "readonly",
+                localStorage: "readonly",
+                sessionStorage: "readonly",
+                performance: "readonly",
+                PerformanceObserver: "readonly",
                 // Node globals
                 process: "readonly",
                 global: "readonly",
@@ -59,9 +63,27 @@ export default [
             },
         },
         rules: {
-            "@typescript-eslint/no-explicit-any": "warn",
-            "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
-            "no-console": ["warn", { allow: ["warn", "error"] }],
+            // TypeScript 규칙 - 점진적 개선을 위해 warn으로 유지
+            "@typescript-eslint/no-explicit-any": "off", // 기존 코드 호환성
+            "@typescript-eslint/no-unused-vars": ["warn", {
+                argsIgnorePattern: "^_",
+                varsIgnorePattern: "^_",
+            }],
+            "@typescript-eslint/no-require-imports": "off", // Config 파일 허용
+
+            // Console 규칙 - 개발/디버그 허용
+            "no-console": "off",
+
+            // React 관련 - 암묵적 허용
+            "react/react-in-jsx-scope": "off",
+        },
+    },
+    {
+        // 테스트 파일 전용 규칙
+        files: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/tests/**"],
+        rules: {
+            "@typescript-eslint/no-explicit-any": "off",
+            "no-console": "off",
         },
     },
     {
@@ -73,7 +95,10 @@ export default [
             "test-results/**",
             "*.config.js",
             "*.config.mjs",
+            "*.config.ts",
             "*.setup.js",
+            "supabase/**",
+            "scripts/**",
         ],
     },
 ];

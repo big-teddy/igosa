@@ -49,7 +49,7 @@ class ChatService {
     try {
       // Try to find existing room
       const rooms = this.getAllRooms();
-      let room = rooms.find((r) => r.dealId === dealId);
+      const room = rooms.find((r) => r.dealId === dealId);
 
       if (room) {
         // Check if user is participant
