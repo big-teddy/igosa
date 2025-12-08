@@ -10,9 +10,9 @@ import { success, error as errorResponse } from '@/lib/api/response-helpers';
 
 async function handler(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const { id } = params;
+    const { id } = await params;
 
     // 협상 조회
     const negotiation = await NegotiationService.getNegotiation(id);

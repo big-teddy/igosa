@@ -28,10 +28,10 @@ import { createClient } from '@/lib/supabase/server';
  */
 export const GET = withErrorHandling(async (
   request: NextRequest,
-  { params }: { params: { productId: string } }
+  { params }: { params: Promise<{ productId: string }> }
 ) => {
   const startTime = Date.now();
-  const { productId } = params;
+  const { productId } = await params;
 
   // Check authentication (optional - determines detail level)
   const supabase = await createClient();

@@ -123,9 +123,9 @@ export async function securityMiddleware(
     } else if (limiter && 'limit' in limiter) {
       // Upstash Ratelimit object
       const identifier = req.headers.get('x-user-id') ||
-                        req.headers.get('x-forwarded-for') ||
-                        req.ip ||
-                        'anonymous';
+        req.headers.get('x-forwarded-for')?.split(',')[0] ||
+        req.headers.get('x-real-ip') ||
+        'anonymous';
 
       const { success, limit, remaining, reset } = await limiter.limit(identifier);
 

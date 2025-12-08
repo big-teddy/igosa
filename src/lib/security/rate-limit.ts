@@ -20,9 +20,9 @@ const isRedisConfigured =
 // Initialize Redis client (only if configured)
 const redis = isRedisConfigured
   ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    })
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  })
   : null;
 
 // Fallback in-memory store (for development/testing)
@@ -116,7 +116,7 @@ export function getClientIdentifier(req: NextRequest): string {
   // Try to get real IP from headers (for proxies/load balancers)
   const forwarded = req.headers.get('x-forwarded-for');
   const realIp = req.headers.get('x-real-ip');
-  const ip = forwarded?.split(',')[0] || realIp || req.ip || 'unknown';
+  const ip = forwarded?.split(',')[0] || realIp || 'unknown';
 
   return ip;
 }

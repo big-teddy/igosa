@@ -13,9 +13,9 @@ import type { SellerResponseRequest, SellerResponseResponse } from '@/types/nego
 
 async function handler(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const { id } = params;
+    const { id } = await params;
     const body: SellerResponseRequest = await request.json();
     const { response, counterPrice, reasoning } = body;
 

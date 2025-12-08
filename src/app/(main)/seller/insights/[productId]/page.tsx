@@ -9,12 +9,13 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     productId: string;
-  };
+  }>;
 }
 
 export default async function SellerInsightsPage({ params }: PageProps) {
+  const { productId } = await params;
   const supabase = await createClient();
 
   // Check authentication
@@ -31,7 +32,7 @@ export default async function SellerInsightsPage({ params }: PageProps) {
 
   // Mock product data - in production, fetch from product service
   const mockProduct = {
-    id: params.productId,
+    id: productId,
     name: `갤럭시 버즈3 Pro`,
     currentPrice: 259000,
     imageUrl: 'https://via.placeholder.com/400',
@@ -40,10 +41,11 @@ export default async function SellerInsightsPage({ params }: PageProps) {
   return (
     <div className="container mx-auto py-8 px-4">
       <SellerInsightsDashboard
-        productId={params.productId}
+        productId={productId}
         currentPrice={mockProduct.currentPrice}
         productName={mockProduct.name}
       />
     </div>
   );
 }
+

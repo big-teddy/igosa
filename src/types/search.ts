@@ -93,6 +93,10 @@ export interface ProductSearchResult {
   popularity: number; // 조회수, 좋아요 등 기반
   hasNegoDeal: boolean;
   createdAt: string;
+  platform: string;
+  country?: string;
+  currency?: string;
+  link?: string;
 }
 
 export interface NegoDealSearchResult {

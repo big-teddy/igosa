@@ -24,7 +24,7 @@ import {
 class SearchService {
   private static instance: SearchService;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): SearchService {
     if (!SearchService.instance) {
@@ -311,6 +311,7 @@ class SearchService {
         popularity: 95,
         hasNegoDeal: true,
         createdAt: '2024-01-15T10:00:00Z',
+        platform: 'Coupang',
       },
       {
         id: 'prod-2',
@@ -328,6 +329,7 @@ class SearchService {
         popularity: 98,
         hasNegoDeal: false,
         createdAt: '2024-01-20T10:00:00Z',
+        platform: 'Coupang',
       },
       {
         id: 'prod-3',
@@ -345,6 +347,7 @@ class SearchService {
         popularity: 87,
         hasNegoDeal: true,
         createdAt: '2024-01-18T10:00:00Z',
+        platform: 'Naver Shopping',
       },
       {
         id: 'prod-4',
@@ -362,6 +365,7 @@ class SearchService {
         popularity: 92,
         hasNegoDeal: false,
         createdAt: '2024-01-10T10:00:00Z',
+        platform: '11st',
       },
     ];
   }

@@ -1,5 +1,6 @@
 'use client';
 
+import { use } from 'react';
 import { useNegotiation } from '@/hooks/useNegotiation';
 import { NegotiationTimeline } from '@/components/negotiations/NegotiationTimeline';
 import { ShareButton } from '@/components/negotiations/ShareButton';
@@ -24,9 +25,9 @@ import { ko } from 'date-fns/locale';
 export default function NegotiationDetailPage({
     params,
 }: {
-    params: { id: string };
+    params: Promise<{ id: string }>;
 }) {
-    const { id } = params;
+    const { id } = use(params);
     const { negotiation, timeline, loading, error } = useNegotiation(id);
 
     if (loading) {

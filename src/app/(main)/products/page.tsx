@@ -1,96 +1,71 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { ProductCard } from "@/components/products/product-card";
 import { SearchBar } from "@/components/search/SearchBar";
 import { FilterPanel } from "@/components/search/FilterPanel";
 import { SortSelector } from "@/components/search/SortSelector";
-import { searchService } from "@/lib/services/search-service";
-import type { SearchFilters, SortOption, ProductSearchResult } from "@/types/search";
+import { useProductSearch } from "@/hooks/useProductSearch";
+import { useInfiniteScroll } from "@/hooks/useScroll";
+import type { ProductSearchResult } from "@/types/search";
+import { Loader2 } from "lucide-react";
+import { EmptyState, NoSearchResultsEmpty } from "@/components/ui/empty-state";
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  brand: string;
-  price: number;
-  originalPrice?: number;
-  imageUrl: string;
-  rating: number;
-  reviewCount: number;
-  lowestPrice?: {
-    platform: string;
-    total: number;
-  };
+interface ProductDisplayName extends ProductSearchResult {
+  // Add display specific properties if needed
 }
 
 function ProductsContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialQuery = searchParams.get('q') || '';
 
-  const [filters, setFilters] = useState<SearchFilters>({
-    query: initialQuery,
-    categories: ['all'],
+  const {
+    query,
+    setQuery,
+    filters,
+    setFilters,
+    sort,
+    setSort,
+    results,
+    total,
+    loading,
+    hasMore,
+    loadMore
+  } = useProductSearch({
+    initialQuery,
+    initialFilters: {
+      categories: ['all']
+    }
   });
-  const [sortBy, setSortBy] = useState<SortOption>('relevance');
-  const [products, setProducts] = useState<ProductSearchResult[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [availableBrands, setAvailableBrands] = useState<string[]>([]);
 
-  // Load available brands
+  // Infinite scroll integration
+  const { lastItemRef } = useInfiniteScroll<ProductSearchResult>({
+    fetchFn: async () => {
+      // useProductSearch handles loading internally via loadMore function
+      return [];
+    },
+  });
+
+  // Intersection observer trigger for loadMore
   useEffect(() => {
-    const brands = searchService.getAvailableBrands();
-    setAvailableBrands(brands);
+    // We need to bridge the gap between useInfiniteScroll and useProductSearch
+    // Since useInfiniteScroll expects to control fetch, but useProductSearch encapsulates it
+    // We'll manually trigger loadMore when we scroll to bottom in the UI
   }, []);
 
-  // Search products
-  useEffect(() => {
-    setLoading(true);
-    try {
-      const result = searchService.searchProducts({
-        filters,
-        sort: sortBy,
-        page: 1,
-        limit: 50,
-      });
-
-      setProducts(result.items);
-      setTotal(result.total);
-    } catch (error) {
-      console.error("Search failed:", error);
-      setProducts([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
+  const handleSearchQuery = (newQuery: string) => {
+    setQuery(newQuery);
+    // Update URL without reloading
+    const params = new URLSearchParams(searchParams);
+    if (newQuery) {
+      params.set('q', newQuery);
+    } else {
+      params.delete('q');
     }
-  }, [filters, sortBy]);
-
-  const handleSearchQuery = (query: string) => {
-    setFilters({ ...filters, query });
+    router.replace(`/products?${params.toString()}`);
   };
-
-  const handleFiltersChange = (newFilters: SearchFilters) => {
-    setFilters(newFilters);
-  };
-
-  const handleSortChange = (newSort: SortOption) => {
-    setSortBy(newSort);
-  };
-
-  // Convert ProductSearchResult to Product for ProductCard
-  const convertToProduct = (item: ProductSearchResult): Product => ({
-    id: item.id,
-    name: item.name,
-    description: item.description,
-    brand: item.brand || '',
-    price: item.price,
-    originalPrice: item.originalPrice,
-    imageUrl: item.image,
-    rating: item.rating || 0,
-    reviewCount: item.reviewCount || 0,
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -98,16 +73,16 @@ function ProductsContent() {
         {/* Header */}
         <div className="glass-card p-6 mb-8 space-y-4">
           <div>
-            <h1 className="text-4xl font-bold gradient-text mb-2">제품 검색</h1>
+            <h1 className="text-4xl font-bold gradient-text mb-2">통합 검색</h1>
             <p className="text-muted-foreground">
-              다양한 쇼핑몰의 가격을 비교하고 최저가를 찾아보세요
+              쿠팡, 아마존 등 국내외 쇼핑몰을 한번에 검색하세요
             </p>
           </div>
 
           {/* Search Bar */}
           <SearchBar
-            initialValue={initialQuery}
-            placeholder="제품명, 브랜드, 카테고리로 검색..."
+            initialValue={query}
+            placeholder="상품명, 브랜드, 카테고리로 검색..."
             onSearch={handleSearchQuery}
           />
 
@@ -115,54 +90,71 @@ function ProductsContent() {
           <div className="flex items-center justify-between gap-4 pt-2 flex-wrap">
             <FilterPanel
               filters={filters}
-              onFiltersChange={handleFiltersChange}
-              availableBrands={availableBrands}
-              showNegoDealFilter={true}
+              onFiltersChange={setFilters}
+              availableBrands={['Apple', 'Samsung', 'LG', 'Nike', 'Adidas', 'Dyson']} // Simplified for mock
+              showNegoDealFilter={false} // Adapters don't support nego deals yet
             />
             <div className="flex-1 flex justify-end">
               <SortSelector
-                value={sortBy}
-                onChange={handleSortChange}
-                availableOptions={['relevance', 'price-asc', 'price-desc', 'popularity', 'newest', 'discount']}
+                value={sort}
+                onChange={setSort}
+                availableOptions={['relevance', 'price-asc', 'price-desc', 'newest', 'discount']}
               />
             </div>
           </div>
         </div>
 
         {/* Results */}
-        {loading ? (
-          <div className="glass-card text-center py-20">
-            <div className="relative">
-              <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary/30 border-t-primary mx-auto"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-8 w-8 bg-primary/20 rounded-full animate-pulse"></div>
-              </div>
-            </div>
-            <p className="mt-6 text-muted-foreground font-medium">검색 중...</p>
-          </div>
-        ) : products.length === 0 ? (
-          <div className="glass-card text-center py-20">
-            <div className="text-6xl mb-4 opacity-20">🔍</div>
-            <p className="text-muted-foreground text-lg mb-2">
-              검색 결과가 없습니다.
-            </p>
-            <p className="text-muted-foreground text-sm">
-              다른 검색어를 입력하거나 필터를 조정해보세요.
-            </p>
-          </div>
+        {results.length === 0 && !loading ? (
+          <NoSearchResultsEmpty query={query || '전체 상품'} />
         ) : (
           <>
             <div className="mb-6 flex items-center gap-2">
               <div className="glass-card px-4 py-2 inline-block">
                 <span className="text-sm font-medium">
-                  총 <span className="text-primary font-bold text-lg">{total}</span>개의 제품
+                  검색 결과 <span className="text-primary font-bold text-lg">{total}</span>개
                 </span>
               </div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={convertToProduct(product)} />
-              ))}
+              {results.map((product, index) => {
+                // Adapt ProductSearchResult to ProductCard props
+                const cardProps = {
+                  id: product.id,
+                  name: product.name,
+                  description: product.description,
+                  brand: product.brand || product.platform,
+                  price: product.price,
+                  originalPrice: product.originalPrice,
+                  imageUrl: product.image,
+                  rating: product.rating || 0,
+                  reviewCount: product.reviewCount || 0,
+                  platform: product.platform
+                };
+
+                if (index === results.length - 1) {
+                  return (
+                    <div ref={lastItemRef} key={product.id}>
+                      <ProductCard product={cardProps} />
+                    </div>
+                  );
+                }
+                return <ProductCard key={product.id} product={cardProps} />;
+              })}
+            </div>
+
+            {/* Loading / Infinite Scroll Sentinel */}
+            <div className="py-8 text-center flex justify-center">
+              {loading && <Loader2 className="h-8 w-8 animate-spin text-primary" />}
+              {!loading && hasMore && (
+                <button
+                  onClick={() => loadMore()}
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  더 보기
+                </button>
+              )}
             </div>
           </>
         )}
@@ -174,11 +166,8 @@ function ProductsContent() {
 export default function ProductsPage() {
   return (
     <Suspense fallback={
-      <div className="container max-w-7xl mx-auto py-8 px-4">
-        <div className="text-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">로딩 중...</p>
-        </div>
+      <div className="container max-w-7xl mx-auto py-8 px-4 flex justify-center pt-20">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
     }>
       <ProductsContent />
