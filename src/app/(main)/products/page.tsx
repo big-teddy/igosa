@@ -12,9 +12,7 @@ import type { ProductSearchResult } from "@/types/search";
 import { Loader2 } from "lucide-react";
 import { EmptyState, NoSearchResultsEmpty } from "@/components/ui/empty-state";
 
-interface ProductDisplayName extends ProductSearchResult {
-  // Add display specific properties if needed
-}
+
 
 function ProductsContent() {
   const searchParams = useSearchParams();
