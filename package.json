@@ -58,7 +58,7 @@
     "@sentry/nextjs": "^10.25.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.78.0",
-    "@tosspayments/payment-sdk": "^1.9.1",
+    "@tosspayments/payment-sdk": "^1.9.2",
     "@upstash/qstash": "^2.8.4",
     "@upstash/ratelimit": "^2.0.3",
     "@upstash/redis": "^1.35.6",
