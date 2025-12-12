@@ -1,5 +1,10 @@
 const { withSentryConfig } = require('@sentry/nextjs');
 
+// Bundle analyzer for performance optimization
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -53,6 +58,11 @@ const sentryWebpackPluginOptions = {
 // Only wrap with Sentry in production or if DSN is set
 const shouldUseSentry = process.env.NEXT_PUBLIC_SENTRY_DSN && process.env.NODE_ENV === 'production';
 
-module.exports = shouldUseSentry
-  ? withSentryConfig(nextConfig, sentryWebpackPluginOptions)
-  : nextConfig;
+// Compose config: Bundle Analyzer -> Sentry (if enabled) -> nextConfig
+let config = nextConfig;
+config = withBundleAnalyzer(config);
+if (shouldUseSentry) {
+  config = withSentryConfig(config, sentryWebpackPluginOptions);
+}
+
+module.exports = config;
