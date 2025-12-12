@@ -74,6 +74,6 @@ export const getUserPreferences = unstable_cache(
  * Invalidate cache by tag
  */
 export async function invalidateCache(tags: string[]) {
-    const { revalidateTag } = await import('next/cache');
+    const { revalidateTag } = require('next/cache');
     tags.forEach((tag) => revalidateTag(tag));
 }
