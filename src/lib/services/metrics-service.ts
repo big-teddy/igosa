@@ -3,7 +3,9 @@
  * Aggregates business and technical metrics for monitoring dashboard
  */
 
-import prisma from '@/lib/prisma';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export interface BusinessMetrics {
     activeNegotiations: number;
@@ -64,50 +66,37 @@ export class MetricsService {
                     createdAt: { gte: startTime },
                     updatedAt: { not: null },
                 },
-                select: {
-                    createdAt: true,
-                    updatedAt: true,
-                },
-            });
-            const avgNegotiationDuration = completedNegotiations.length > 0
-                ? completedNegotiations.reduce((acc, neg) => {
-                    const duration = neg.updatedAt
-                        ? (neg.updatedAt.getTime() - neg.createdAt.getTime()) / (1000 * 60 * 60)
-                        : 0;
-                    return acc + duration;
-                }, 0) / completedNegotiations.length
-                : 0;
 
-            return {
-                activeNegotiations,
-                negotiationSuccessRate: Math.round(negotiationSuccessRate * 10) / 10,
-                visualSearchUsage,
-                watchlistItemsCount,
-                avgNegotiationDuration: Math.round(avgNegotiationDuration * 10) / 10,
-            };
-        } catch (error) {
-            console.error('MetricsService.getBusinessMetrics failed:', error);
-            return {
-                activeNegotiations: 0,
-                negotiationSuccessRate: 0,
-                visualSearchUsage: 0,
-                watchlistItemsCount: 0,
-                avgNegotiationDuration: 0,
-            };
+                return {
+                    activeNegotiations,
+                    negotiationSuccessRate: Math.round(negotiationSuccessRate * 10) / 10,
+                    visualSearchUsage,
+                    watchlistItemsCount,
+                    avgNegotiationDuration: Math.round(avgNegotiationDuration * 10) / 10,
+                };
+            } catch (error) {
+                console.error('MetricsService.getBusinessMetrics failed:', error);
+                return {
+                    activeNegotiations: 0,
+                    negotiationSuccessRate: 0,
+                    visualSearchUsage: 0,
+                    watchlistItemsCount: 0,
+                    avgNegotiationDuration: 0,
+                };
+            }
         }
-    }
 
     /**
      * Get technical metrics (placeholder)
      * In production, these would come from APM tools (Sentry, Vercel Analytics, etc.)
      */
-    async getTechnicalMetrics(): Promise<TechnicalMetrics> {
-        return {
-            apiErrorRate: 0, // Would come from Sentry
-            avgResponseTime: 0, // Would come from Vercel Analytics
-            activeUsers: 0, // Would come from PostHog/Vercel Analytics
-        };
-    }
+    async getTechnicalMetrics(): Promise < TechnicalMetrics > {
+            return {
+                apiErrorRate: 0, // Would come from Sentry
+                avgResponseTime: 0, // Would come from Vercel Analytics
+                activeUsers: 0, // Would come from PostHog/Vercel Analytics
+            };
+        }
 
     private getStartTime(timeRange: 'hour' | 'day' | 'week'): Date {
         const now = new Date();
