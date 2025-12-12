@@ -232,6 +232,57 @@ export function FilterPanel({
             </CollapsibleContent>
           </Collapsible>
 
+          {/* Platform Filter */}
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center justify-between w-full">
+              <h3 className="font-semibold text-sm">쇼핑몰</h3>
+              <ChevronDown className="h-4 w-4" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3 space-y-2">
+              {['Coupang', 'Amazon', 'AliExpress', '11st', 'Gmarket'].map((platform) => (
+                <div key={platform} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`platform-${platform}`}
+                    checked={filters.platforms?.includes(platform) || false}
+                    onCheckedChange={(checked) => {
+                      const current = filters.platforms || [];
+                      const updated = checked
+                        ? [...current, platform]
+                        : current.filter((p) => p !== platform);
+                      onFiltersChange({ ...filters, platforms: updated });
+                    }}
+                  />
+                  <Label htmlFor={`platform-${platform}`} className="text-sm cursor-pointer">
+                    {platform}
+                  </Label>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Rating Filter */}
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center justify-between w-full">
+              <h3 className="font-semibold text-sm">평점</h3>
+              <ChevronDown className="h-4 w-4" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3">
+              <RadioGroup
+                value={String(filters.minRating || 0)}
+                onValueChange={(value) => onFiltersChange({ ...filters, minRating: Number(value) })}
+              >
+                {[4, 3, 0].map((rating) => (
+                  <div key={rating} className="flex items-center space-x-2">
+                    <RadioGroupItem value={String(rating)} id={`rating-${rating}`} />
+                    <Label htmlFor={`rating-${rating}`} className="text-sm cursor-pointer">
+                      {rating === 0 ? '전체' : `${rating}점 이상`}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </CollapsibleContent>
+          </Collapsible>
+
           {/* Other Filters */}
           <div className="space-y-3 pt-3 border-t">
             <div className="flex items-center space-x-2">

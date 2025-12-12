@@ -59,6 +59,7 @@
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.78.0",
     "@tosspayments/payment-sdk": "^1.9.1",
+    "@upstash/qstash": "^2.8.4",
     "@upstash/ratelimit": "^2.0.3",
     "@upstash/redis": "^1.35.6",
     "ai": "^5.0.112",
@@ -106,6 +107,8 @@
     "jest-environment-jsdom": "^29.7.0",
     "prisma": "^6.18.0",
     "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript-eslint": "^8.46.3"
   }
 }

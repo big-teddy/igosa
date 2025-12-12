@@ -11,6 +11,7 @@ import { useInfiniteScroll } from "@/hooks/useScroll";
 import type { ProductSearchResult } from "@/types/search";
 import { Loader2 } from "lucide-react";
 import { EmptyState, NoSearchResultsEmpty } from "@/components/ui/empty-state";
+import { ProductGridSkeleton } from "@/components/skeletons/ProductCardSkeleton";
 
 
 
@@ -165,7 +166,7 @@ export default function ProductsPage() {
   return (
     <Suspense fallback={
       <div className="container max-w-7xl mx-auto py-8 px-4 flex justify-center pt-20">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <ProductGridSkeleton count={8} />
       </div>
     }>
       <ProductsContent />

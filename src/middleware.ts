@@ -6,9 +6,40 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(_request: NextRequest) {
+import { checkRateLimit } from '@/lib/security/rate-limit';
+
+export async function middleware(request: NextRequest) {
     // Get response
     const response = NextResponse.next();
+
+    // Rate Limiting
+    const path = request.nextUrl.pathname;
+
+    // 1. Chat API (Strict)
+    if (path.startsWith('/api/chat')) {
+        const limitResponse = await checkRateLimit(request, 'chat');
+        if (limitResponse) return limitResponse;
+    }
+    // 2. Search API
+    else if (path.startsWith('/api/products/search')) {
+        const limitResponse = await checkRateLimit(request, 'search');
+        if (limitResponse) return limitResponse;
+    }
+    // 3. Auth API (Login/signup)
+    else if (path.startsWith('/api/auth')) {
+        const limitResponse = await checkRateLimit(request, 'auth');
+        if (limitResponse) return limitResponse;
+    }
+    // 4. Price Tracking Creation (Prevent spam)
+    else if (path === '/api/price-tracking' && request.method === 'POST') {
+        const limitResponse = await checkRateLimit(request, 'priceTracking');
+        if (limitResponse) return limitResponse;
+    }
+    // 5. General API (Catch-all)
+    else if (path.startsWith('/api')) {
+        const limitResponse = await checkRateLimit(request, 'api');
+        if (limitResponse) return limitResponse;
+    }
 
     // Apply security headers to all responses
     const headers = response.headers;

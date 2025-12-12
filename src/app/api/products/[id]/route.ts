@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mockProducts } from '@/lib/data/mock-products';
+import { logger } from '@/lib/logger';
 
 export const runtime = 'edge';
 
@@ -38,7 +39,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Product fetch error:', error);
+    logger.error('Product fetch error', error as Error, { id: (await params).id });
     return NextResponse.json(
       {
         success: false,

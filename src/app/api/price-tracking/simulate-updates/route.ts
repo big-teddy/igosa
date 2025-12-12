@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { priceAlertNotification } from '@/lib/services/price-alert-notification';
+import { logger } from '@/lib/logger';
 import type { PriceAlertEvent } from '@/types/price-tracking';
 
 export async function POST(request: NextRequest) {
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
                   channels: tracking.notification_channels || ['push'],
                 });
               } catch (notifError) {
-                console.error('Failed to send notification:', notifError);
+                logger.error('Failed to send notification', notifError as Error);
               }
             }
           }
@@ -142,10 +143,10 @@ export async function POST(request: NextRequest) {
         triggered,
       },
     });
-  } catch (error: any) {
-    console.error('Error simulating price updates:', error);
+  } catch (error) {
+    logger.error('Error simulating price updates', error as Error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: (error as Error).message },
       { status: 500 }
     );
   }

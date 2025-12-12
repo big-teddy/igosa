@@ -5,16 +5,18 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { validateCsrfToken, validateOrigin } from './csrf';
-import { applyRateLimit, rateLimiters } from './rate-limit';
+import { checkRateLimit, RateLimitType } from './rate-limit';
 
 export interface SecurityConfig {
   enableCsrf?: boolean;
   enableRateLimit?: boolean;
-  rateLimitType?: 'chat' | 'search' | 'general' | 'authenticated' | 'priceTracking' | 'strict' | 'standard' | 'api';
+  rateLimitType?: RateLimitType;
   enableCors?: boolean;
   allowedOrigins?: string[];
   enableSecurityHeaders?: boolean;
 }
+
+// ... (applySecurityHeaders and applyCorsHeaders remain unchanged)
 
 /**
  * Apply security headers to response
@@ -90,7 +92,7 @@ export async function securityMiddleware(
   const {
     enableCsrf = true,
     enableRateLimit = true,
-    rateLimitType = 'general',
+    rateLimitType = 'api',
     enableCors = false,
     allowedOrigins = [],
     enableSecurityHeaders = true,
@@ -107,54 +109,13 @@ export async function securityMiddleware(
 
   // Apply rate limiting
   if (enableRateLimit) {
-    const limiter = rateLimiters[rateLimitType];
+    const limitResponse = await checkRateLimit(req, rateLimitType);
 
-    // Check if it's a function (middleware) or Upstash Ratelimit object
-    if (typeof limiter === 'function') {
-      const rateLimitResult = await applyRateLimit(req, limiter);
-
-      if (rateLimitResult) {
-        // Rate limit exceeded
-        if (enableSecurityHeaders) {
-          return applySecurityHeaders(rateLimitResult);
-        }
-        return rateLimitResult;
+    if (limitResponse) {
+      if (enableSecurityHeaders) {
+        return applySecurityHeaders(limitResponse);
       }
-    } else if (limiter && 'limit' in limiter) {
-      // Upstash Ratelimit object
-      const identifier = req.headers.get('x-user-id') ||
-        req.headers.get('x-forwarded-for')?.split(',')[0] ||
-        req.headers.get('x-real-ip') ||
-        'anonymous';
-
-      const { success, limit, remaining, reset } = await limiter.limit(identifier);
-
-      if (!success) {
-        const response = new NextResponse(
-          JSON.stringify({
-            error: 'Too Many Requests',
-            message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
-            limit,
-            remaining: 0,
-            reset: new Date(reset).toISOString(),
-          }),
-          {
-            status: 429,
-            headers: {
-              'Content-Type': 'application/json',
-              'X-RateLimit-Limit': limit.toString(),
-              'X-RateLimit-Remaining': '0',
-              'X-RateLimit-Reset': reset.toString(),
-              'Retry-After': Math.ceil((reset - Date.now()) / 1000).toString(),
-            },
-          }
-        );
-
-        if (enableSecurityHeaders) {
-          return applySecurityHeaders(response);
-        }
-        return response;
-      }
+      return limitResponse;
     }
   }
 

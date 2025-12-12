@@ -60,6 +60,8 @@ export interface SearchFilters {
   minDiscount?: number; // 최소 할인율 (%)
   inStock?: boolean;    // 재고 있는 상품만
   hasNegoDeal?: boolean; // 네고딜 진행중인 상품만
+  platforms?: string[]; // 쇼핑몰 (Coupang, Amazon etc)
+  minRating?: number;   // 최소 평점 (1~5)
 }
 
 export interface SearchOptions {

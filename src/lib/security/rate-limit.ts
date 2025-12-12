@@ -1,12 +1,6 @@
 /**
  * Rate Limiting - Production-Ready
  * Uses Upstash Redis for distributed rate limiting across serverless functions
- *
- * Benefits:
- * - DoS attack prevention
- * - OpenAI API cost control ($300/month savings)
- * - Fair usage enforcement
- * - Analytics & monitoring
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -25,204 +19,145 @@ const redis = isRedisConfigured
   })
   : null;
 
-// Fallback in-memory store (for development/testing)
-interface RateLimitConfig {
-  interval: number;
-  uniqueTokenPerInterval: number;
+// Rate Limit Types
+export type RateLimitType = 'chat' | 'search' | 'api' | 'auth' | 'priceTracking';
+
+interface LimitConfig {
+  requests: number;
+  window: '1 m' | '1 h';
 }
 
-interface RateLimitStore {
-  [key: string]: {
-    count: number;
-    resetTime: number;
-  };
-}
-
-const fallbackStore: RateLimitStore = {};
+const limits: Record<RateLimitType, LimitConfig> = {
+  chat: { requests: 10, window: '1 m' }, // Expensive (OpenAI)
+  search: { requests: 30, window: '1 m' }, // Moderate
+  auth: { requests: 20, window: '1 m' }, // Login/Signup
+  api: { requests: 100, window: '1 m' }, // General API
+  priceTracking: { requests: 50, window: '1 h' }, // Prevent spam
+};
 
 /**
- * Simple in-memory rate limiter
- * 프로덕션에서는 Redis 사용 권장
+ * In-memory fallback store for development
  */
-export class RateLimiter {
-  private interval: number;
-  private maxRequests: number;
+const fallbackStore: Record<string, { count: number; reset: number }> = {};
 
-  constructor(config: RateLimitConfig) {
-    this.interval = config.interval;
-    this.maxRequests = config.uniqueTokenPerInterval;
-  }
-
-  /**
-   * Check if request should be rate limited
-   */
-  async check(identifier: string): Promise<{
-    success: boolean;
-    limit: number;
-    remaining: number;
-    reset: number;
-  }> {
-    const now = Date.now();
-    const key = identifier;
-
-    // Clean up expired entries
-    if (fallbackStore[key] && fallbackStore[key].resetTime < now) {
+/**
+ * Clean up expired entries in fallback store
+ */
+function cleanupFallbackStore() {
+  const now = Date.now();
+  for (const key in fallbackStore) {
+    if (fallbackStore[key].reset < now) {
       delete fallbackStore[key];
     }
-
-    // Initialize or get existing record
-    if (!fallbackStore[key]) {
-      fallbackStore[key] = {
-        count: 0,
-        resetTime: now + this.interval,
-      };
-    }
-
-    const record = fallbackStore[key];
-
-    // Check if limit exceeded
-    if (record.count >= this.maxRequests) {
-      return {
-        success: false,
-        limit: this.maxRequests,
-        remaining: 0,
-        reset: record.resetTime,
-      };
-    }
-
-    // Increment counter
-    record.count += 1;
-
-    return {
-      success: true,
-      limit: this.maxRequests,
-      remaining: this.maxRequests - record.count,
-      reset: record.resetTime,
-    };
   }
+}
 
-  /**
-   * Reset rate limit for identifier
-   */
-  reset(identifier: string): void {
-    delete fallbackStore[identifier];
-  }
+// Cleanup every minute
+if (typeof setInterval !== 'undefined') {
+  setInterval(cleanupFallbackStore, 60000);
 }
 
 /**
  * Get client identifier from request
  */
 export function getClientIdentifier(req: NextRequest): string {
-  // Try to get real IP from headers (for proxies/load balancers)
   const forwarded = req.headers.get('x-forwarded-for');
   const realIp = req.headers.get('x-real-ip');
-  const ip = forwarded?.split(',')[0] || realIp || 'unknown';
-
-  return ip;
+  return forwarded?.split(',')[0] || realIp || '127.0.0.1';
 }
 
 /**
- * Rate limit middleware factory
+ * Check Rate Limit
+ * Returns null if allowed, or NextResponse(429) if blocked
  */
-export function createRateLimitMiddleware(config: RateLimitConfig) {
-  const limiter = new RateLimiter(config);
+export async function checkRateLimit(
+  req: NextRequest,
+  type: RateLimitType
+): Promise<NextResponse | null> {
+  const identifier = getClientIdentifier(req);
+  const config = limits[type];
 
-  return async (req: NextRequest): Promise<NextResponse | null> => {
-    const identifier = getClientIdentifier(req);
-    const result = await limiter.check(identifier);
+  let success = true;
+  let limit = config.requests;
+  let remaining = config.requests;
+  let reset = Date.now() + 60000;
 
-    // Set rate limit headers
-    const headers = new Headers();
-    headers.set('X-RateLimit-Limit', result.limit.toString());
-    headers.set('X-RateLimit-Remaining', result.remaining.toString());
-    headers.set('X-RateLimit-Reset', new Date(result.reset).toISOString());
+  if (redis) {
+    // Production: Use Upstash Redis
+    const ratelimit = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(config.requests, config.window),
+      analytics: true,
+      prefix: `@upstash/ratelimit:${type}`,
+    });
 
-    if (!result.success) {
-      return new NextResponse(
-        JSON.stringify({
-          error: 'Too Many Requests',
-          message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
-          retryAfter: Math.ceil((result.reset - Date.now()) / 1000),
-        }),
-        {
-          status: 429,
-          headers: {
-            ...Object.fromEntries(headers),
-            'Content-Type': 'application/json',
-            'Retry-After': Math.ceil((result.reset - Date.now()) / 1000).toString(),
-          },
-        }
-      );
+    const result = await ratelimit.limit(identifier);
+    success = result.success;
+    limit = result.limit;
+    remaining = result.remaining;
+    reset = result.reset;
+
+  } else {
+    // Development: Use In-Memory Fallback
+    const now = Date.now();
+    const windowMs = config.window === '1 h' ? 3600000 : 60000;
+    const key = `${type}:${identifier}`;
+
+    if (!fallbackStore[key] || fallbackStore[key].reset < now) {
+      fallbackStore[key] = { count: 0, reset: now + windowMs };
     }
 
-    return null; // Continue to next middleware/handler
-  };
-}
-
-/**
- * Production Rate Limiters with Upstash Redis
- */
-const createUpstashLimiter = (requests: number, window: string, prefix: string) => {
-  if (!redis) {
-    // Fallback to in-memory for development
-    return createRateLimitMiddleware({
-      interval: window.includes('h') ? parseInt(window) * 60 * 60 * 1000 : parseInt(window) * 60 * 1000,
-      uniqueTokenPerInterval: requests,
-    });
+    const record = fallbackStore[key];
+    if (record.count >= config.requests) {
+      success = false;
+      remaining = 0;
+    } else {
+      record.count++;
+      remaining = config.requests - record.count;
+    }
+    reset = record.reset;
   }
 
-  return new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(requests, window as '1 m' | '1 h'),
-    analytics: true,
-    prefix,
-  });
-};
+  // Construct Rate Limit Headers
+  const headers = new Headers();
+  headers.set('X-RateLimit-Limit', limit.toString());
+  headers.set('X-RateLimit-Remaining', remaining.toString());
+  headers.set('X-RateLimit-Reset', new Date(reset).toISOString());
 
-/**
- * Predefined rate limiters for common use cases
- */
-export const rateLimiters = {
-  // Chat API - Most expensive (OpenAI costs)
-  chat: createUpstashLimiter(10, '1 m', '@upstash/ratelimit:chat'),
+  if (!success) {
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Too Many Requests',
+        message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+        retryAfter: Math.ceil((reset - Date.now()) / 1000),
+      }),
+      {
+        status: 429,
+        headers: {
+          ...Object.fromEntries(headers),
+          'Content-Type': 'application/json',
+          'Retry-After': Math.ceil((reset - Date.now()) / 1000).toString(),
+        },
+      }
+    );
+  }
 
-  // Search API - Moderate cost
-  search: createUpstashLimiter(60, '1 m', '@upstash/ratelimit:search'),
+  // If allowed, we can optionally attach headers to the request for downstream use,
+  // but Middleware usually returns a response or modifies the request.
+  // We'll return null to indicate "pass", but the caller should merge headers if possible.
+  // Since Middleware must return one final response, if we continue, we technically
+  // haven't created the response yet.
 
-  // General API (GET)
-  general: createUpstashLimiter(100, '1 m', '@upstash/ratelimit:general'),
+  // NOTE: In Next.js Middleware, if we return null here, 
+  // the caller (middleware.ts) needs to know the headers to set on the FINAL response.
+  // We can attach them to the request headers temporarily so middleware picks them up,
+  // or return them in a wrapper object. 
 
-  // Authenticated users - More permissive
-  authenticated: createUpstashLimiter(200, '1 m', '@upstash/ratelimit:auth'),
+  // A cleaner way for middleware usage:
+  // We'll attach them to the request headers as internal metadata 
+  // 'x-ratelimit-remaining', etc. so the final response can include them if needed.
+  // But strict rate limit headers usually only matter on denial or specific auditing.
+  // For now, let's just return null.
 
-  // Price tracking creation - Prevent spam
-  priceTracking: createUpstashLimiter(20, '1 h', '@upstash/ratelimit:price-tracking'),
-
-  // Strict (legacy compatibility)
-  strict: createRateLimitMiddleware({
-    interval: 60 * 1000,
-    uniqueTokenPerInterval: 10,
-  }),
-
-  // Standard (legacy compatibility)
-  standard: createRateLimitMiddleware({
-    interval: 60 * 1000,
-    uniqueTokenPerInterval: 60,
-  }),
-
-  // API (legacy compatibility)
-  api: createRateLimitMiddleware({
-    interval: 60 * 1000,
-    uniqueTokenPerInterval: 100,
-  }),
-};
-
-/**
- * Helper to apply rate limiting to API route
- */
-export async function applyRateLimit(
-  req: NextRequest,
-  limiter: (req: NextRequest) => Promise<NextResponse | null>
-): Promise<NextResponse | null> {
-  return await limiter(req);
+  return null;
 }

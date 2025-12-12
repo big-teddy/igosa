@@ -20,8 +20,24 @@ model User {
   conversations Conversation[]
   negoParticipants NegoParticipant[]
   userActions   UserAction[]
+  productLikes  ProductLike[]
 
   @@map("users")
+}
+
+// Product Likes (Watchlist)
+model ProductLike {
+  id          String   @id @default(uuid())
+  userId      String
+  productId   String
+  targetPrice Int?     // Auto-negotiation trigger price
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, productId])
+  @@index([productId]) // For checking popularity
+  @@map("product_likes")
 }
 
 // Conversations

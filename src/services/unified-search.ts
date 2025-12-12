@@ -116,6 +116,20 @@ class UnifiedSearchService {
             filtered = filtered.filter((p) => (p.discountRate || 0) >= filters.minDiscount!);
         }
 
+        // Platform (Mall)
+        if (filters.platforms && filters.platforms.length > 0) {
+            filtered = filtered.filter((p) =>
+                filters.platforms!.some(platform =>
+                    p.platform.toLowerCase() === platform.toLowerCase()
+                )
+            );
+        }
+
+        // Min Rating
+        if (filters.minRating) {
+            filtered = filtered.filter((p) => (p.rating || 0) >= filters.minRating!);
+        }
+
         return filtered;
     }
 

@@ -21,6 +21,9 @@ const customJestConfig = {
     '!src/**/*.stories.{js,jsx,ts,tsx}',
     '!src/**/__tests__/**',
   ],
+  transformIgnorePatterns: [
+    '/node_modules/(?!(uncrypto|@upstash)/)',
+  ],
   // Coverage thresholds only for files with tests
   // This prevents CI failure due to low global coverage
   coverageThreshold: {

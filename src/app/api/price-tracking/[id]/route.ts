@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 // Validation schema for PATCH requests
@@ -54,7 +55,7 @@ export async function GET(
 
     return NextResponse.json({ tracking });
   } catch (error) {
-    console.error('Error in GET /api/price-tracking/[id]:', error);
+    logger.error('Error in GET /api/price-tracking/[id]', error as Error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -130,7 +131,7 @@ export async function PATCH(
 
     return NextResponse.json({ tracking: updated });
   } catch (error) {
-    console.error('Error in PATCH /api/price-tracking/[id]:', error);
+    logger.error('Error in PATCH /api/price-tracking/[id]', error as Error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -174,7 +175,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in DELETE /api/price-tracking/[id]:', error);
+    logger.error('Error in DELETE /api/price-tracking/[id]', error as Error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logger';
 import type { CreatePriceTrackingRequest, CreatePriceTrackingResponse } from '@/types/price-tracking';
 
 /**
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
     const currentPrice = targetPrice * 1.3; // Mock: current price is 30% higher
 
     // Insert into price_tracking table
-    const { data: tracking, error: insertError } = await supabase
+    const { data, error: insertError } = await supabase
       .from('price_tracking')
       .insert({
         user_id: user.id,
@@ -57,11 +58,12 @@ export async function POST(request: NextRequest) {
         expires_at: expiresAt || null,
         status: 'active',
       })
-      .select()
-      .single();
+      .select();
+
+    const tracking = data?.[0];
 
     if (insertError) {
-      console.error('Error creating price tracking:', insertError);
+      logger.error('Error creating price tracking:', undefined, { error: insertError });
       return NextResponse.json(
         { error: 'Failed to create price tracking', details: insertError.message },
         { status: 500 }
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
-    console.error('Error in POST /api/price-tracking:', error);
+    logger.error('Error in POST /api/price-tracking', error as Error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -140,7 +142,7 @@ export async function GET(request: NextRequest) {
     const { data: trackings, error: queryError } = await query;
 
     if (queryError) {
-      console.error('Error fetching price trackings:', queryError);
+      logger.error('Error fetching price trackings:', undefined, { error: queryError });
       return NextResponse.json(
         { error: 'Failed to fetch price trackings' },
         { status: 500 }
@@ -149,7 +151,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ trackings: trackings || [] });
   } catch (error) {
-    console.error('Error in GET /api/price-tracking:', error);
+    logger.error('Error in GET /api/price-tracking', error as Error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

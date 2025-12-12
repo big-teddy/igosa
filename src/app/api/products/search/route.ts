@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchProducts, sortByLowestPrice, sortByRating, sortByReviewCount } from '@/lib/data/mock-products';
+import { logger } from '@/lib/logger';
 
 export const runtime = 'edge';
 
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
       query,
     });
   } catch (error) {
-    console.error('Product search error:', error);
+    logger.error('Product search error', error as Error);
     return NextResponse.json(
       {
         success: false,
