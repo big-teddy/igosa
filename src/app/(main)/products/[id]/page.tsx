@@ -249,9 +249,9 @@ export default function ProductDetailPage() {
               {friendPurchases.map((friend) => (
                 <Link key={friend.id} href={`/users/${friend.username}`}>
                   <div className="flex items-center gap-2 px-3 py-2 bg-background rounded-full border hover:border-primary transition-colors cursor-pointer">
-                    <div className="w-8 h-8 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden">
+                    <div className="w-8 h-8 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden relative">
                       {friend.avatar ? (
-                        <img src={friend.avatar} alt={friend.name} className="w-full h-full" />
+                        <Image src={friend.avatar} alt={friend.name} fill className="object-cover" sizes="32px" />
                       ) : (
                         <Users className="h-4 w-4 text-primary" />
                       )}
@@ -282,9 +282,9 @@ export default function ProductDetailPage() {
               <div key={review.id} className="p-4 bg-muted/30 rounded-lg border-l-4 border-primary">
                 <div className="flex items-start gap-3 mb-3">
                   <Link href={`/users/${review.userId}`}>
-                    <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80">
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80 relative">
                       {review.userAvatar ? (
-                        <img src={review.userAvatar} alt={review.userName} className="w-full h-full" />
+                        <Image src={review.userAvatar} alt={review.userName} fill className="object-cover" sizes="48px" />
                       ) : (
                         <Users className="h-6 w-6 text-primary" />
                       )}
@@ -310,11 +310,10 @@ export default function ProductDetailPage() {
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
-                          className={`h-4 w-4 ${
-                            i < review.rating
+                          className={`h-4 w-4 ${i < review.rating
                               ? 'fill-yellow-400 text-yellow-400'
                               : 'text-muted-foreground'
-                          }`}
+                            }`}
                         />
                       ))}
                       <span className="text-sm text-muted-foreground ml-1">
@@ -406,10 +405,12 @@ export default function ProductDetailPage() {
                     {/* Thumbnail */}
                     {review.thumbnail && (
                       <div className="w-32 h-20 bg-muted rounded overflow-hidden flex-shrink-0 relative group cursor-pointer">
-                        <img
+                        <Image
                           src={review.thumbnail}
                           alt={review.productName}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
+                          sizes="128px"
                         />
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <Play className="h-8 w-8 text-white" />
@@ -420,9 +421,9 @@ export default function ProductDetailPage() {
                     {/* Content */}
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden">
+                        <div className="w-8 h-8 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden relative">
                           {review.influencerAvatar ? (
-                            <img src={review.influencerAvatar} alt={review.influencerName} className="w-full h-full" />
+                            <Image src={review.influencerAvatar} alt={review.influencerName} fill className="object-cover" sizes="32px" />
                           ) : (
                             <Users className="h-4 w-4 text-primary" />
                           )}
@@ -530,11 +531,10 @@ export default function ProductDetailPage() {
             {product.prices.map((priceInfo: any, index: number) => (
               <div
                 key={index}
-                className={`p-4 rounded-lg border-2 ${
-                  priceInfo.total === product.lowestPrice?.total
+                className={`p-4 rounded-lg border-2 ${priceInfo.total === product.lowestPrice?.total
                     ? "border-primary bg-primary/5"
                     : "border-muted"
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">

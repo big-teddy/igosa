@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,9 +138,9 @@ export default function FriendsPage() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden">
+                        <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden relative">
                           {result.avatar ? (
-                            <img src={result.avatar} alt={result.name} className="w-full h-full" />
+                            <Image src={result.avatar} alt={result.name} fill className="object-cover" sizes="48px" />
                           ) : (
                             <Users className="h-6 w-6 text-primary" />
                           )}
@@ -235,9 +236,9 @@ export default function FriendsPage() {
                       <Link key={friend.id} href={`/users/${friend.username}`}>
                         <div className="p-4 border rounded-lg hover:border-primary transition-colors cursor-pointer">
                           <div className="flex items-start gap-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                               {friend.avatar ? (
-                                <img src={friend.avatar} alt={friend.name} className="w-full h-full" />
+                                <Image src={friend.avatar} alt={friend.name} fill className="object-cover" sizes="48px" />
                               ) : (
                                 <Users className="h-6 w-6 text-primary" />
                               )}
@@ -298,9 +299,9 @@ export default function FriendsPage() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden">
+                            <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center overflow-hidden relative">
                               {request.avatar ? (
-                                <img src={request.avatar} alt={request.name} className="w-full h-full" />
+                                <Image src={request.avatar} alt={request.name} fill className="object-cover" sizes="48px" />
                               ) : (
                                 <Users className="h-6 w-6 text-primary" />
                               )}
