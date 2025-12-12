@@ -61,7 +61,7 @@
     "@tosspayments/payment-sdk": "^1.9.1",
     "@upstash/qstash": "^2.8.4",
     "@upstash/ratelimit": "^2.0.3",
-    "@upstash/redis": "^1.35.6",
+    "@upstash/redis": "^1.35.8",
     "ai": "^5.0.112",
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
