@@ -22,7 +22,7 @@ export class AutoNegoService {
 
             // Check if any watcher's target price is met
             const interestedWatchers = watchers.filter(
-                (w) => w.targetPrice && currentPrice <= w.targetPrice
+                (w: { targetPrice: number | null }) => w.targetPrice && currentPrice <= w.targetPrice
             );
 
             if (interestedWatchers.length === 0) {
