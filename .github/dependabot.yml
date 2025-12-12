@@ -1,41 +1,24 @@
-# Dependabot configuration
-# 자동 의존성 업데이트
-
 version: 2
 updates:
   # npm dependencies
-  - package-ecosystem: 'npm'
-    directory: '/'
+  - package-ecosystem: "npm"
+    directory: "/"
     schedule:
-      interval: 'weekly'
-      day: 'monday'
-      time: '09:00'
-      timezone: 'Asia/Seoul'
-    open-pull-requests-limit: 10
+      interval: "weekly"  # 매주 월요일만 체크 (매일 → 매주)
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 3  # 최대 3개 PR만 동시에 열림 (기본 5개 → 3개)
+    commit-message:
+      prefix: "chore(deps)"  # 커밋 메시지에 prefix 추가
     reviewers:
-      - 'big-teddy'
-    assignees:
-      - 'big-teddy'
+      - "big-teddy"  # 리뷰어 지정 (optional)
     labels:
-      - 'dependencies'
-      - 'automated'
-    commit-message:
-      prefix: 'chore'
-      prefix-development: 'chore'
-      include: 'scope'
-
-  # GitHub Actions
-  - package-ecosystem: 'github-actions'
-    directory: '/'
-    schedule:
-      interval: 'weekly'
-      day: 'monday'
-      time: '09:00'
-      timezone: 'Asia/Seoul'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'github-actions'
-    commit-message:
-      prefix: 'ci'
-      include: 'scope'
+      - "dependencies"
+      - "automated"
+    # 특정 패키지 무시
+    ignore:
+      - dependency-name: "@types/*"  # TypeScript 타입 정의는 자동 업데이트 안 함
+        update-types: ["version-update:semver-patch"]
+      - dependency-name: "eslint*"
+        update-types: ["version-update:semver-minor"]
