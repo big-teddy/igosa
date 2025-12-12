@@ -37,6 +37,8 @@ model ProductLike {
 
   @@unique([userId, productId])
   @@index([productId]) // For checking popularity
+  @@index([userId, createdAt]) // For user watchlist queries
+  @@index([createdAt]) // For time-range queries
   @@map("product_likes")
 }
 
@@ -53,6 +55,8 @@ model Conversation {
   messages  Message[]
 
   @@index([userId])
+  @@index([userId, updatedAt]) // For recent conversations
+  @@index([createdAt]) // For pagination
   @@map("conversations")
 }
 
@@ -69,6 +73,7 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id])
 
   @@index([conversationId])
+  @@index([conversationId, createdAt]) // For ordered message retrieval
   @@map("messages")
 }
 
