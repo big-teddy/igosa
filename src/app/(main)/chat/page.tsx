@@ -1,6 +1,6 @@
 "use client";
 
-import { useChat } from "ai/react";
+import { useChat } from "@ai-sdk/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +72,7 @@ function generateFollowUpQuestions(messageContent: string, productKeywords: stri
 }
 
 // Extract source/platform from context (Perplexity-style citations)
-function extractSources(text: string): Array<{platform: string; url: string}> {
+function extractSources(text: string): Array<{ platform: string; url: string }> {
   const sources = [];
   if (text.includes('쿠팡')) sources.push({ platform: '쿠팡', url: 'https://www.coupang.com' });
   if (text.includes('네이버')) sources.push({ platform: '네이버쇼핑', url: 'https://shopping.naver.com' });
@@ -91,7 +91,8 @@ const SUGGESTED_PROMPTS = [
 export default function ChatPage() {
   const { searchMode, setSearchMode } = useModeStore();
   const userId = 'user-1'; // Mock user ID
-  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, reload, error } = useChat({
+  const [input, setInput] = useState("");
+  const { messages, append, status, stop, reload, error } = useChat({
     api: "/api/chat",
     body: {
       mode: searchMode
@@ -120,6 +121,8 @@ export default function ChatPage() {
       }
     },
   });
+
+  const isLoading = status === 'streaming' || status === 'submitted';
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -158,22 +161,28 @@ export default function ChatPage() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e as any);
+      if (input.trim()) {
+        append({ role: 'user', content: input });
+        setInput("");
+      }
     }
   };
 
   const handleSuggestedPrompt = (promptText: string) => {
-    const syntheticEvent = {
-      preventDefault: () => {},
-      target: { value: promptText },
-    } as any;
-
-    handleInputChange(syntheticEvent);
+    setInput(promptText);
 
     setTimeout(() => {
-      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-      handleSubmit(submitEvent as any);
+      append({ role: 'user', content: promptText });
+      setInput("");
     }, 100);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      append({ role: 'user', content: input });
+      setInput("");
+    }
   };
 
   const handleVoiceInput = () => {
@@ -200,11 +209,7 @@ export default function ChatPage() {
 
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
-        const syntheticEvent = {
-          preventDefault: () => {},
-          target: { value: transcript },
-        } as any;
-        handleInputChange(syntheticEvent);
+        setInput(transcript);
         setIsListening(false);
       };
 
@@ -263,11 +268,10 @@ export default function ChatPage() {
                   variant={searchMode === 'price' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setSearchMode('price')}
-                  className={`h-7 px-3 rounded-full text-xs transition-all ${
-                    searchMode === 'price'
-                      ? 'bg-blue-500 text-white hover:bg-blue-600'
-                      : 'hover:bg-transparent'
-                  }`}
+                  className={`h-7 px-3 rounded-full text-xs transition-all ${searchMode === 'price'
+                    ? 'bg-blue-500 text-white hover:bg-blue-600'
+                    : 'hover:bg-transparent'
+                    }`}
                 >
                   <DollarSign className="h-3.5 w-3.5 mr-1" />
                   가격 비교
@@ -276,11 +280,10 @@ export default function ChatPage() {
                   variant={searchMode === 'recommend' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setSearchMode('recommend')}
-                  className={`h-7 px-3 rounded-full text-xs transition-all ${
-                    searchMode === 'recommend'
-                      ? 'bg-purple-500 text-white hover:bg-purple-600'
-                      : 'hover:bg-transparent'
-                  }`}
+                  className={`h-7 px-3 rounded-full text-xs transition-all ${searchMode === 'recommend'
+                    ? 'bg-purple-500 text-white hover:bg-purple-600'
+                    : 'hover:bg-transparent'
+                    }`}
                 >
                   <Sparkles className="h-3.5 w-3.5 mr-1" />
                   추천템
@@ -319,11 +322,10 @@ export default function ChatPage() {
 
                     {/* Message bubble */}
                     <div
-                      className={`rounded-2xl px-5 py-3.5 ${
-                        message.role === "user"
-                          ? "bg-gradient-to-br from-primary to-accent text-white shadow-md"
-                          : "bg-muted/40 text-foreground"
-                      }`}
+                      className={`rounded-2xl px-5 py-3.5 ${message.role === "user"
+                        ? "bg-gradient-to-br from-primary to-accent text-white shadow-md"
+                        : "bg-muted/40 text-foreground"
+                        }`}
                     >
                       <p className="text-[15px] leading-7 whitespace-pre-wrap break-words">
                         {message.content}
@@ -371,9 +373,8 @@ export default function ChatPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className={`h-8 w-8 p-0 ${
-                              feedback[message.id] === 'up' ? 'text-green-600 bg-green-50 dark:bg-green-950' : ''
-                            }`}
+                            className={`h-8 w-8 p-0 ${feedback[message.id] === 'up' ? 'text-green-600 bg-green-50 dark:bg-green-950' : ''
+                              }`}
                             onClick={() => handleFeedback(message.id, 'up')}
                           >
                             <ThumbsUp className="h-3.5 w-3.5" />
@@ -381,9 +382,8 @@ export default function ChatPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className={`h-8 w-8 p-0 ${
-                              feedback[message.id] === 'down' ? 'text-red-600 bg-red-50 dark:bg-red-950' : ''
-                            }`}
+                            className={`h-8 w-8 p-0 ${feedback[message.id] === 'down' ? 'text-red-600 bg-red-50 dark:bg-red-950' : ''
+                              }`}
                             onClick={() => handleFeedback(message.id, 'down')}
                           >
                             <ThumbsDown className="h-3.5 w-3.5" />
@@ -522,7 +522,7 @@ export default function ChatPage() {
                 ref={inputRef}
                 placeholder="메시지를 입력하세요..."
                 value={input}
-                onChange={handleInputChange}
+                onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isLoading}
                 className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base resize-none min-h-[24px] max-h-[200px] py-3"
@@ -536,11 +536,10 @@ export default function ChatPage() {
                 variant="ghost"
                 onClick={handleVoiceInput}
                 disabled={isLoading}
-                className={`flex-shrink-0 h-10 w-10 rounded-xl ${
-                  isListening
-                    ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
-                    : 'hover:bg-accent'
-                }`}
+                className={`flex-shrink-0 h-10 w-10 rounded-xl ${isListening
+                  ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
+                  : 'hover:bg-accent'
+                  }`}
                 aria-label={isListening ? "음성 인식 중지" : "음성 입력"}
               >
                 {isListening ? (
