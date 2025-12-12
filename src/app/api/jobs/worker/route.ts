@@ -22,7 +22,7 @@ async function handler(req: NextRequest) {
     try {
         // 2. Dispatch Logic
         switch (type) {
-            case 'check-watchlist':
+            case 'check-watchlist': {
                 // Import AutoNegoService dynamically to avoid circular deps
                 const { autoNegoService } = await import('@/lib/services/auto-nego-service');
                 const { productId } = payload;
@@ -33,6 +33,7 @@ async function handler(req: NextRequest) {
                 const result = await autoNegoService.checkProduct(productId, currentPrice);
                 console.log('check-watchlist result:', result);
                 break;
+            }
 
             case 'auto-negotiate':
                 // TODO: Implement AutoNegoService.triggerNegotiation(payload.negoId)
