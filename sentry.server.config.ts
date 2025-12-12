@@ -28,6 +28,16 @@ if (SENTRY_DSN) {
       Sentry.httpIntegration(),
     ],
 
+    // Custom context
+    initialScope: (scope) => {
+      scope.setTags({
+        deployment: process.env.VERCEL_ENV || 'local',
+        region: process.env.VERCEL_REGION || 'local',
+        node_env: process.env.NODE_ENV,
+      });
+      return scope;
+    },
+
     // Error filtering
     beforeSend(event, hint) {
       // Don't send errors in development

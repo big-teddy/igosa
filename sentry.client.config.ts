@@ -36,6 +36,15 @@ if (SENTRY_DSN) {
       Sentry.browserTracingIntegration(),
     ],
 
+    // Custom context
+    initialScope: (scope) => {
+      scope.setTags({
+        deployment: process.env.VERCEL_ENV || 'local',
+        region: process.env.VERCEL_REGION || 'local',
+      });
+      return scope;
+    },
+
     // Error filtering
     beforeSend(event, hint) {
       // Don't send errors in development
