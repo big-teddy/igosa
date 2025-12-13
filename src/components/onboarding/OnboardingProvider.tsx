@@ -1,23 +1,24 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { OnboardingTour } from './OnboardingTour';
+import { useEffect, useState } from "react";
+import { WelcomeTour } from "./WelcomeTour";
 
 export function OnboardingProvider() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const [runTour, setRunTour] = useState(false);
 
   useEffect(() => {
-    // Get user from localStorage
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setUserId(userData.id);
+    // Check if tour was already completed
+    const completed = localStorage.getItem("welcomeTourCompleted");
+
+    if (!completed) {
+      // Give user a moment to see the page before showing tour
+      const timer = setTimeout(() => {
+        setRunTour(true);
+      }, 1500);
+
+      return () => clearTimeout(timer);
     }
   }, []);
 
-  if (!userId) {
-    return null;
-  }
-
-  return <OnboardingTour userId={userId} />;
+  return <WelcomeTour run={runTour} onFinish={() => setRunTour(false)} />;
 }
