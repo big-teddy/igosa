@@ -1,101 +1,108 @@
 {
-    "name": "이거사",
+    "name": "이거사 - AI 쇼핑 에이전트",
     "short_name": "이거사",
-    "description": "AI 가격 협상 플랫폼 - 함께 협상하면, 더 싸게!",
+    "description": "한국 최초의 AI 네이티브 쇼핑 에이전트 플랫폼",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
-    "theme_color": "#667eea",
-    "orientation": "portrait-primary",
+    "theme_color": "#2563eb",
+    "orientation": "portrait",
+    "scope": "/",
     "icons": [
         {
             "src": "/icons/icon-72x72.png",
             "sizes": "72x72",
             "type": "image/png",
-            "purpose": "maskable any"
+            "purpose": "any maskable"
         },
         {
             "src": "/icons/icon-96x96.png",
             "sizes": "96x96",
             "type": "image/png",
-            "purpose": "maskable any"
+            "purpose": "any maskable"
         },
         {
             "src": "/icons/icon-128x128.png",
             "sizes": "128x128",
             "type": "image/png",
-            "purpose": "maskable any"
+            "purpose": "any maskable"
         },
         {
             "src": "/icons/icon-144x144.png",
             "sizes": "144x144",
             "type": "image/png",
-            "purpose": "maskable any"
+            "purpose": "any maskable"
         },
         {
             "src": "/icons/icon-152x152.png",
             "sizes": "152x152",
             "type": "image/png",
-            "purpose": "maskable any"
+            "purpose": "any maskable"
         },
         {
             "src": "/icons/icon-192x192.png",
             "sizes": "192x192",
             "type": "image/png",
-            "purpose": "maskable any"
+            "purpose": "any maskable"
         },
         {
             "src": "/icons/icon-384x384.png",
             "sizes": "384x384",
             "type": "image/png",
-            "purpose": "maskable any"
+            "purpose": "any maskable"
         },
         {
             "src": "/icons/icon-512x512.png",
             "sizes": "512x512",
             "type": "image/png",
-            "purpose": "maskable any"
-        }
-    ],
-    "categories": [
-        "shopping",
-        "finance",
-        "lifestyle"
-    ],
-    "screenshots": [
-        {
-            "src": "/screenshots/home.png",
-            "sizes": "1080x1920",
-            "type": "image/png",
-            "form_factor": "narrow"
+            "purpose": "any maskable"
         }
     ],
     "shortcuts": [
         {
-            "name": "AI 채팅",
-            "short_name": "채팅",
-            "description": "AI와 가격 협상하기",
-            "url": "/chat",
+            "name": "상품 검색",
+            "short_name": "검색",
+            "description": "AI 비주얼 검색으로 상품 찾기",
+            "url": "/search",
             "icons": [
                 {
-                    "src": "/icons/chat-icon.png",
-                    "sizes": "96x96"
+                    "src": "/icons/icon-192x192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
                 }
             ]
         },
         {
-            "name": "네고딜",
-            "short_name": "딜",
-            "description": "진행 중인 공동구매",
-            "url": "/nego-deals",
+            "name": "AI 채팅",
+            "short_name": "채팅",
+            "description": "AI 쇼핑 어시스턴트와 대화",
+            "url": "/chat",
             "icons": [
                 {
-                    "src": "/icons/deal-icon.png",
-                    "sizes": "96x96"
+                    "src": "/icons/icon-192x192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        },
+        {
+            "name": "찜 목록",
+            "short_name": "찜",
+            "description": "관심 상품 보기",
+            "url": "/my",
+            "icons": [
+                {
+                    "src": "/icons/icon-192x192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
                 }
             ]
         }
     ],
-    "related_applications": [],
+    "categories": [
+        "shopping",
+        "productivity"
+    ],
+    "screenshots": [],
     "prefer_related_applications": false
 }

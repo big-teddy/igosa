@@ -219,3 +219,42 @@
   }
 }
 
+/* Touch Interaction Utilities */
+@layer components {
+  /* Enhanced touch states */
+  .touch-active {
+    @apply active:scale-95 transition-transform duration-75;
+  }
+
+  /* Prevent text selection on touch */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mobile-optimized card */
+  .mobile-card {
+    @apply touch-target touch-active rounded-lg p-4 active:bg-muted/50;
+  }
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+  /* Optimize font sizes for mobile readability */
+  input,
+  textarea,
+  select,
+  button {
+    font-size: 16px; /* Prevents iOS zoom */
+  }
+  
+  /* Better spacing for mobile */
+  .mobile-spacing > * + * {
+    margin-top: 0.75rem;
+  }
+}
+
+
